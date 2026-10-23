@@ -1,0 +1,1226 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MLB 스탯 분석</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#EEF2EF; --panel:#FFFFFF; --ink:#13241D; --mute:#5B6B63; --line:#D3DCD6;
+  --board:#12261F; --board-ink:#C9D8CE; --bulb:#F5C542;
+  --accent:#D8343B; --s1:#D8343B; --s2:#1F7AA8; --s3:#B87F00; --s4:#7A4FB5;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0C1A15; --panel:#14281F; --ink:#E6EEE8; --mute:#93A59B; --line:#274236;
+    --board:#091510; --board-ink:#A9BDB0; --bulb:#F5C542;
+    --accent:#FF6B70; --s1:#FF6B70; --s2:#5BB8E8; --s3:#F0B429; --s4:#B79BEB;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0C1A15; --panel:#14281F; --ink:#E6EEE8; --mute:#93A59B; --line:#274236;
+  --board:#091510; --board-ink:#A9BDB0; --bulb:#F5C542;
+  --accent:#FF6B70; --s1:#FF6B70; --s2:#5BB8E8; --s3:#F0B429; --s4:#B79BEB;
+  color-scheme:dark;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;font-size:15px;line-height:1.55}
+.wrap{max-width:760px;margin:0 auto;padding:20px 16px 40px}
+h1{margin:0;font-family:"Barlow Condensed","Noto Sans KR",sans-serif;font-weight:700;font-size:30px;letter-spacing:.01em;line-height:1.1}
+.sub{margin:4px 0 0;color:var(--mute);font-size:13px}
+.top{display:flex;flex-direction:column;gap:14px;margin-bottom:6px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--panel);align-self:flex-start}
+.seg button{border:0;background:transparent;color:var(--mute);font:inherit;font-weight:500;padding:6px 18px;border-radius:999px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line)}
+.tabs button{flex:1;border:0;background:transparent;color:var(--mute);font:inherit;font-weight:500;padding:10px 0;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent);font-weight:700}
+button:focus-visible,select:focus-visible,.filebtn:focus-within{outline:2px solid var(--s2);outline-offset:2px}
+.filters{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin:16px 0 0}
+.controls{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 14px;align-items:flex-end}
+select{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0;max-width:100%}
+.lbl{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--mute);min-width:0}
+.who{margin:6px 0 12px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.who b{font-size:20px}
+.who span{color:var(--mute);font-size:14px;margin-left:6px}
+.favbtn{border:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;font-size:13px;padding:6px 12px;border-radius:999px;cursor:pointer;white-space:nowrap}
+.favbtn[aria-pressed="true"]{border-color:var(--bulb);background:rgba(245,197,66,.16)}
+/* scoreboard */
+.board{background:var(--board);border-radius:14px;padding:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(78px,1fr));gap:8px}
+.cell{border:1px solid rgba(201,216,206,.22);border-radius:8px;padding:8px 6px 6px;text-align:center}
+.cell .v{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:30px;line-height:1.05;color:var(--bulb);font-variant-numeric:tabular-nums}
+.cell .n{font-size:11px;color:var(--board-ink);margin-top:2px}
+.cell.key{grid-column:span 2;background:rgba(245,197,66,.08);border-color:rgba(245,197,66,.5)}
+.cell.key .v{font-size:48px}
+h2{font-size:15px;margin:26px 0 10px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+.empty{background:var(--panel);border:1px dashed var(--line);border-radius:12px;padding:18px;color:var(--mute);margin-top:14px}
+.bars{display:grid;gap:9px}
+.bar{display:grid;grid-template-columns:64px 1fr 52px;align-items:center;gap:10px;font-size:13px}
+.bar .tr{height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+.bar .fl{height:100%;background:var(--s2);border-radius:4px}
+.bar .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:500}
+.hint{font-size:12px;color:var(--mute);margin:8px 0 0}
+.scroll{overflow-x:auto;max-width:100%}
+table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{padding:7px 10px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:var(--panel)}
+th{color:var(--mute);font-weight:500}
+tr.on td{background:rgba(245,197,66,.14)}
+td.best{font-weight:700;color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px}
+.chip{border:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;font-size:13px;padding:6px 12px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.chip i{width:10px;height:10px;border-radius:50%;background:var(--line);display:inline-block}
+.chip[aria-pressed="true"]{border-color:var(--ink)}
+.chip.dim{color:var(--mute);border-style:dashed}
+.chart{display:block;width:100%;max-width:420px;margin:0 auto;height:auto}
+.axl{font-size:11px;fill:var(--mute)}
+.legend{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;font-size:13px;margin-top:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+.rank{display:grid;gap:8px}
+.row{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.row .no{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:22px;color:var(--mute)}
+.row:first-child .no{color:var(--accent)}
+.row .nm{font-weight:500}
+.row .tm{font-size:12px;color:var(--mute)}
+.row .rv{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:26px;font-variant-numeric:tabular-nums}
+.row .gauge{grid-column:2 / 4;height:5px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:-2px}
+.row .gauge span{display:block;height:100%;background:var(--s2)}
+.more{margin-top:12px}
+.note{margin-top:14px;font-size:12px;color:var(--mute);line-height:1.6}
+.tag{display:inline-block;font-size:12px;color:var(--mute);border:1px dashed var(--line);border-radius:6px;padding:2px 8px;margin-top:8px}
+.data{margin-top:34px}
+.data h2{margin-top:0}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.filebtn{position:relative;border:1px solid var(--ink);background:var(--ink);color:var(--bg);font:inherit;font-size:13px;font-weight:500;padding:7px 14px;border-radius:999px;cursor:pointer;display:inline-block}
+.filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.msg{font-size:13px;margin-top:10px;min-height:1.2em}
+.msg.err{color:var(--accent)}
+[hidden]{display:none!important}
+.back{border:0;background:transparent;color:var(--mute);font:inherit;font-size:13px;padding:0;cursor:pointer;align-self:flex-start}
+.back:hover{color:var(--ink)}
+.land{min-height:70vh;display:flex;flex-direction:column;justify-content:center;gap:24px}
+.land h1{font-size:42px}
+.picks{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.pick{border:1px solid rgba(201,216,206,.22);background:var(--board);border-radius:16px;padding:28px 20px 22px;text-align:center;cursor:pointer;font:inherit}
+.pick:hover{border-color:var(--bulb)}
+.pick:focus-visible{outline:2px solid var(--bulb);outline-offset:2px}
+.pick .big{display:block;font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:88px;line-height:1;color:var(--bulb);letter-spacing:.02em}
+.pick .ko{display:block;margin-top:10px;font-size:16px;color:#EAF1E8}
+input[type=search]{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0;width:100%}
+.grow{flex:1 1 180px}
+.count{font-size:12px;color:var(--mute);margin:8px 0 0}
+.banner{background:rgba(245,197,66,.14);border:1px solid rgba(245,197,66,.45);border-radius:10px;padding:10px 12px;font-size:13px;margin:0 0 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.tops{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.topcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.topcard .th{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.topcard .th b{font-size:15px}
+.link{border:0;background:transparent;color:var(--s2);font:inherit;font-size:12px;cursor:pointer;padding:0}
+.topcard ol{list-style:none;margin:0;padding:0;display:grid;gap:5px}
+.topcard li{display:grid;grid-template-columns:20px minmax(0,1fr) auto auto;gap:8px;align-items:baseline;font-size:13px}
+.topcard li .no{font-family:"Barlow Condensed",sans-serif;font-weight:700;color:var(--mute)}
+.topcard li:first-child .no{color:var(--accent)}
+.topcard li .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topcard li .tm{color:var(--mute);font-size:11px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topcard li .v{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:18px;font-variant-numeric:tabular-nums}
+.ranks{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px}
+.rk{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 6px;text-align:center}
+.rk .n{font-size:11px;color:var(--mute)}
+.rk .r{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:24px;line-height:1.1}
+.rk .of{font-size:11px;color:var(--mute)}
+.tabs{overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch}
+.tabs button{flex:0 0 auto;padding:10px 14px;font-size:14px}
+.scope{display:inline-flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:14px;padding:3px;background:var(--panel)}
+.scope button{border:0;background:transparent;color:var(--mute);font:inherit;font-size:13px;font-weight:500;padding:6px 12px;border-radius:11px;cursor:pointer}
+.scope button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.tl{border:0;background:transparent;color:var(--s2);font:inherit;cursor:pointer;padding:0;text-align:left}
+.tl:hover{text-decoration:underline}
+.stand h3{font-size:14px;margin:14px 0 6px}
+.salgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px;margin-bottom:8px}
+.salgrid div{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:12px;color:var(--mute)}
+.salgrid b{display:block;font-size:14px;color:var(--ink);font-variant-numeric:tabular-nums}
+.champban{background:var(--board);color:#EAF1E8;border-radius:14px;padding:18px 16px;text-align:center;margin-bottom:6px}
+.champban .cy{font-size:13px;letter-spacing:.02em;color:var(--board-ink)}
+.champban .cn{font-family:"Barlow Condensed","Noto Sans KR",sans-serif;font-weight:700;font-size:44px;line-height:1.1;color:var(--bulb);margin:2px 0}
+.champban .cs{font-size:13px;color:var(--board-ink)}
+.pbd{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px}
+.pcol h3{font-size:15px;margin:0 0 8px;padding-bottom:6px;border-bottom:3px solid var(--ink)}
+.pr{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:1px 10px;align-items:center;padding:8px 10px;border-radius:10px;margin-bottom:6px;border-left:7px solid var(--line);background:var(--panel)}
+.pr.dw{border-left-color:var(--bulb);background:rgba(245,197,66,.16)}
+.pr.wc{border-left-color:var(--s2);background:rgba(31,122,168,.14)}
+.pr.champ{outline:2px solid var(--bulb)}
+.pr .sd{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:28px;line-height:1;text-align:center}
+.pr .tn{font-weight:700;font-size:15px}
+.pr .tn .tl{font-size:15px;font-weight:700;color:var(--ink)}
+.pr .rc{grid-column:2 / 4;font-size:12px;color:var(--mute)}
+.pr .rc b{color:var(--ink)}
+.tg{font-size:11px;font-weight:700;padding:1px 9px;border-radius:999px;white-space:nowrap}
+.tg.dw{background:var(--bulb);color:#13241D}
+.tg.wc{background:var(--s2);color:#fff}
+.dvgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.dvc{background:var(--board);color:#EAF1E8;border-radius:12px;padding:10px 12px}
+.dvc .t{font-size:11px;color:var(--board-ink)}
+.dvc .n .tl{font-size:17px;font-weight:700;color:var(--bulb)}
+.dvc .r{font-size:12px;color:var(--board-ink)}
+.wc tr.in td{background:rgba(31,122,168,.14);font-weight:700}
+.wc tr.cut td{border-bottom:3px solid var(--s2)}
+.wc tr.out td{color:var(--mute)}
+.bgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.bcol .bh{font-size:13px;margin:0 0 4px;padding:4px 8px;border-radius:8px;background:var(--ink);color:var(--bg);text-align:center}
+.bcol .rt{font-size:11px;color:var(--mute);margin:10px 0 2px}
+.sc{background:var(--panel);border:1px solid var(--line);border-radius:10px;margin:5px 0;overflow:hidden}
+.sr{display:flex;justify-content:space-between;gap:8px;padding:6px 10px;font-size:13px;color:var(--mute)}
+.sr .tl{color:inherit;font-size:13px}
+.sr.win{background:rgba(245,197,66,.24);color:var(--ink);font-weight:700}
+.bfinal{margin-top:10px}
+.bfinal .sc{border:2px solid var(--bulb)}
+.bt{font-size:12px;fill:var(--ink)}
+.bt.win{font-weight:700}
+.bt.lose{fill:var(--mute)}
+.bw{font-size:12px;fill:var(--ink);font-variant-numeric:tabular-nums}
+.bw.win{font-weight:700}
+.bw.lose{fill:var(--mute)}
+.bhd{font-size:11px;fill:var(--mute)}
+.awgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.awcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.awcard h3{font-size:14px;margin:0 0 8px}
+.awr{display:flex;gap:8px;align-items:baseline;font-size:14px;padding:2px 0;flex-wrap:wrap}
+.lgt{font-size:11px;border:1px solid var(--line);border-radius:6px;padding:0 6px;color:var(--mute)}
+.awr .tm{font-size:12px;color:var(--mute)}
+.bdg{display:inline-block;font-size:10px;line-height:1.5;border:1px solid var(--line);border-radius:6px;padding:0 5px;margin-left:6px;color:var(--mute);vertical-align:middle;white-space:nowrap}
+.bdg.q{color:var(--s2);border-color:var(--s2)}
+.links{display:flex;flex-wrap:wrap;gap:8px}
+.links a{font-size:13px;color:var(--s2);border:1px solid var(--line);border-radius:999px;padding:5px 12px;text-decoration:none}
+.filebtn.alt{background:transparent;color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section class="land" id="landing" hidden>
+    <div>
+      <h1>야구 스탯 분석</h1>
+      <p class="sub">세이버메트릭스로 선수를 보고, 비교하고, 순위를 매깁니다. 리그를 먼저 고르세요.</p>
+    </div>
+    <div class="picks">
+      <button class="pick" data-act="league" data-v="kbo"><span class="big">KBO</span><span class="ko">한국프로야구</span></button>
+      <button class="pick" data-act="league" data-v="mlb"><span class="big">MLB</span><span class="ko">메이저리그</span></button>
+    </div>
+  </section>
+  <div id="shell" hidden>
+  <div class="top">
+    <button class="back" data-act="home">← 리그 선택</button>
+    <div>
+      <h1 id="title">MLB 스탯 분석</h1>
+      <p class="sub">세이버메트릭스로 선수를 보고, 비교하고, 순위를 매깁니다.</p>
+      <span class="tag" id="tag"></span>
+    </div>
+    <div class="seg" role="group" aria-label="선수 유형" id="seg"></div>
+    <div class="tabs" role="tablist" id="tabs"></div>
+  </div>
+  <div id="filters"></div>
+  <main id="app"></main>
+
+  <section class="data card">
+    <h2>데이터</h2>
+    <div id="datastatus"></div>
+    <div class="btns">
+      <label class="filebtn">JSON 파일 불러오기<input type="file" id="file" accept="application/json,.json"></label>
+      <button class="chip" id="resetbtn" data-act="reset">샘플로 되돌리기</button>
+    </div>
+    <div id="ctbox"><div class="btns">
+      <label class="filebtn alt">연봉·계약 CSV 불러오기<input type="file" id="cfile" accept=".csv,text/csv"></label>
+      <button class="chip" id="cclear" data-act="cclear">연봉·계약 자료 지우기</button>
+    </div>
+    <p class="hint">CSV 첫 줄(열 이름) 예: 이름,선수ID,연도,연봉,계약시작,계약종료,총액,비고 — 이름 또는 선수ID, 그리고 연봉 또는 계약총액이 있으면 됩니다. 엑셀에서 저장할 때는 “CSV UTF-8”을 고르세요.</p></div>
+    <div class="msg" id="msg" role="status"></div>
+    <p class="note" id="note"></p>
+  </section>
+  </div>
+</div>
+
+<script>
+(function(){
+/* ---------- 유틸 ---------- */
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lsGet=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
+const lsSet=(k,v)=>{try{localStorage.setItem(k,v);return true}catch(e){return false}};
+const lsDel=k=>{try{localStorage.removeItem(k)}catch(e){}};
+const short=nm=>{const w=String(nm).replace(/\b(Jr\.?|Sr\.?|II|III|IV)$/i,'').trim().split(/\s+/);return w[w.length-1]||nm;};
+const joinDot=a=>a.filter(Boolean).join(' · ');
+const LEAGUES={mlb:{name:'MLB'},kbo:{name:'KBO'}};
+
+/* ---------- 샘플 데이터 생성 (시드 고정, 가상 선수) ---------- */
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+function gauss(r){let u=0,v=0;while(!u)u=r();while(!v)v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+const SH=[
+ {id:'h1',name:'Marcus Ellery',team:'Harbor Gulls',pos:'우익수',k:.24,bb:.11,hr:.065,babip:.300,d2:.22,sb:8,pa:640,seed:11},
+ {id:'h2',name:'Tomas Rivero',team:'Prairie Hawks',pos:'유격수',k:.15,bb:.08,hr:.025,babip:.322,d2:.24,sb:24,pa:660,seed:22},
+ {id:'h3',name:'Jin-woo Park',team:'Summit Bears',pos:'중견수',k:.19,bb:.09,hr:.035,babip:.318,d2:.20,sb:34,pa:650,seed:33},
+ {id:'h4',name:'Callum Hayes',team:'Delta Herons',pos:'1루수',k:.20,bb:.14,hr:.058,babip:.305,d2:.20,sb:2,pa:620,seed:44},
+ {id:'h5',name:'Andre Vasquez',team:'Harbor Gulls',pos:'3루수',k:.17,bb:.09,hr:.042,babip:.312,d2:.23,sb:10,pa:630,seed:55},
+ {id:'h6',name:'Noah Bellamy',team:'Prairie Hawks',pos:'포수',k:.22,bb:.10,hr:.045,babip:.290,d2:.21,sb:3,pa:560,seed:66},
+ {id:'h7',name:'Theo Marsh',team:'Summit Bears',pos:'대타',k:.26,bb:.07,hr:.030,babip:.285,d2:.20,sb:2,pa:210,seed:71},
+ {id:'h8',name:'Luis Ferrer',team:'Delta Herons',pos:'외야수',k:.21,bb:.12,hr:.075,babip:.340,d2:.19,sb:1,pa:120,seed:81}
+];
+const SP=[
+ {id:'p1',name:'Silas Whitmore',team:'Summit Bears',pos:'선발',ip:195,k9:10.6,bb9:2.2,hr9:1.0,h9:7.6,seed:77},
+ {id:'p2',name:'Rafael Ortega',team:'Delta Herons',pos:'선발',ip:180,k9:8.4,bb9:2.8,hr9:1.2,h9:8.6,seed:88},
+ {id:'p3',name:'Dominic Rhee',team:'Harbor Gulls',pos:'선발',ip:170,k9:9.5,bb9:3.3,hr9:0.9,h9:7.9,seed:99},
+ {id:'p4',name:'Eli Granger',team:'Prairie Hawks',pos:'선발',ip:200,k9:7.2,bb9:1.9,hr9:1.3,h9:9.0,seed:101},
+ {id:'p5',name:'Jamie Cole',team:'Harbor Gulls',pos:'구원',ip:60,k9:12.8,bb9:3.9,hr9:.7,h9:6.4,seed:91}
+];
+function hitRaw(p,idx){
+  const r=rng(p.seed*100+idx);
+  const pa=Math.round(p.pa*(1+.06*gauss(r)));
+  const k=clamp(p.k*(1+.10*gauss(r)),.08,.35),bb=clamp(p.bb*(1+.12*gauss(r)),.05,.20),hr=clamp(p.hr*(1+.18*gauss(r)),.01,.09);
+  const babip=p.babip+.02*gauss(r);
+  const BB=Math.round(pa*bb),HBP=Math.round(pa*.01),SF=Math.round(pa*.007);
+  const AB=pa-BB-HBP-SF,SO=Math.round(pa*k),HR=Math.round(pa*hr);
+  const Hn=Math.round((AB-SO-HR)*babip);
+  return {PA:pa,AB,H:HR+Hn,D2:Math.round(Hn*p.d2*(1+.15*gauss(r))),T3:Math.round(Hn*.02),HR,BB,HBP,SF,SO,SB:Math.max(0,Math.round(p.sb*(1+.25*gauss(r))))};
+}
+function pitRaw(p,idx){
+  const r=rng(p.seed*100+idx);
+  const outs=Math.round(p.ip*(1+.07*gauss(r))*3),ip=outs/3;
+  const SO=Math.round(ip*p.k9*(1+.08*gauss(r))/9),BB=Math.round(ip*p.bb9*(1+.12*gauss(r))/9),HR=Math.round(ip*p.hr9*(1+.18*gauss(r))/9);
+  const HBP=Math.round(ip*.3/9);
+  const fip=(13*HR+3*(BB+HBP)-2*SO)/ip+3.10;
+  return {outs,SO,BB,HR,HBP,ER:Math.round(ip*(fip+.45*gauss(r))/9),H:Math.round(ip*p.h9*(1+.06*gauss(r))/9)};
+}
+const KH=[
+ {id:'k1',name:'김도윤',team:'한강 독수리',pos:'우익수',k:.17,bb:.10,hr:.050,babip:.325,d2:.23,sb:8,pa:600,seed:111},
+ {id:'k2',name:'이준서',team:'남해 파도',pos:'유격수',k:.12,bb:.09,hr:.020,babip:.335,d2:.24,sb:25,pa:620,seed:122},
+ {id:'k3',name:'박민재',team:'동해 고래',pos:'중견수',k:.16,bb:.09,hr:.030,babip:.335,d2:.21,sb:33,pa:610,seed:133},
+ {id:'k4',name:'최현우',team:'백두 곰',pos:'1루수',k:.19,bb:.13,hr:.060,babip:.310,d2:.20,sb:2,pa:590,seed:144},
+ {id:'k5',name:'정시우',team:'한강 독수리',pos:'3루수',k:.14,bb:.08,hr:.040,babip:.320,d2:.23,sb:10,pa:600,seed:155},
+ {id:'k6',name:'한지호',team:'남해 파도',pos:'포수',k:.18,bb:.09,hr:.035,babip:.300,d2:.21,sb:3,pa:530,seed:166},
+ {id:'k7',name:'서민기',team:'백두 곰',pos:'대타',k:.15,bb:.07,hr:.025,babip:.295,d2:.20,sb:2,pa:190,seed:171},
+ {id:'k8',name:'문재우',team:'동해 고래',pos:'외야수',k:.13,bb:.10,hr:.070,babip:.350,d2:.20,sb:1,pa:110,seed:181}
+];
+const KP=[
+ {id:'kp1',name:'오태양',team:'동해 고래',pos:'선발',ip:175,k9:9.6,bb9:2.4,hr9:.85,h9:8.3,seed:177},
+ {id:'kp2',name:'서지훈',team:'백두 곰',pos:'선발',ip:165,k9:7.8,bb9:2.9,hr9:.95,h9:9.0,seed:188},
+ {id:'kp3',name:'윤하준',team:'한강 독수리',pos:'선발',ip:170,k9:8.5,bb9:3.3,hr9:.80,h9:8.6,seed:199},
+ {id:'kp4',name:'강민석',team:'남해 파도',pos:'선발',ip:180,k9:6.9,bb9:2.0,hr9:1.0,h9:9.4,seed:201},
+ {id:'kp5',name:'조현서',team:'한강 독수리',pos:'구원',ip:55,k9:11.5,bb9:3.4,hr9:.6,h9:6.8,seed:211}
+];
+function sampleDataset(lg){
+  const kbo=lg==='kbo';
+  const seasons=[2022,2023,2024,2025,2026],league={};
+  seasons.forEach(y=>{league[y]=kbo?{obp:.345,slg:.415,cfip:3.30,games:144}:{obp:.315,slg:.410,cfip:3.10,games:162};});
+  const mk=(arr,fn)=>arr.map(p=>{const raw={};seasons.forEach((y,i)=>{raw[y]=fn(p,i)});return {id:p.id,name:p.name,team:p.team,pos:p.pos,raw};});
+  return {source:'sample',seasons,league,hitters:mk(kbo?KH:SH,hitRaw),pitchers:mk(kbo?KP:SP,pitRaw)};
+}
+
+/* ---------- 지표 계산 ---------- */
+function hitStats(x,lg){
+  const obp=(x.H+x.BB+x.HBP)/(x.AB+x.BB+x.HBP+x.SF);
+  const slg=(x.H+x.D2+2*x.T3+3*x.HR)/x.AB;
+  const ok=!!lg&&lg.obp>0&&lg.slg>0;
+  return {pa:x.PA,team:x.T||'',opsp:ok?Math.round(100*(obp/lg.obp+slg/lg.slg-1)):null,avg:x.H/x.AB,obp,slg,ops:obp+slg,hr:x.HR,sb:x.SB==null?null:x.SB,bbp:x.PA>0?x.BB/x.PA:null,kp:x.SO==null||!(x.PA>0)?null:x.SO/x.PA,h:x.H};
+}
+function pitStats(x,lg){
+  const ip=x.outs/3,hasSO=x.SO!=null,hasER=x.ER!=null;
+  const fipOk=hasSO&&!!lg&&lg.cfip!=null;
+  return {team:x.T||'',era:hasER?9*x.ER/ip:null,fip:fipOk?(13*x.HR+3*(x.BB+x.HBP)-2*x.SO)/ip+lg.cfip:null,whip:(x.H+x.BB)/ip,k9:hasSO?9*x.SO/ip:null,bb9:9*x.BB/ip,hr9:9*x.HR/ip,ip,so:hasSO?x.SO:null};
+}
+const r3=v=>v.toFixed(3).replace(/^0\./,'.');
+const pct=v=>(v*100).toFixed(1)+'%';
+const d2=v=>v.toFixed(2);
+const inn=v=>{const o=Math.round(v*3);return Math.floor(o/3)+'.'+(o%3)};
+const HM=[
+ {rate:1,k:'opsp',label:'OPS+',fmt:v=>String(Math.round(v)),worst:60,best:180,radar:1,key:1},
+ {rate:1,k:'avg',label:'타율',fmt:r3,worst:.22,best:.33,radar:1},
+ {rate:1,k:'obp',label:'출루율',fmt:r3,worst:.29,best:.43,radar:1},
+ {rate:1,k:'slg',label:'장타율',fmt:r3,worst:.35,best:.60,radar:1},
+ {rate:1,k:'ops',label:'OPS',fmt:r3,worst:.65,best:1.0},
+ {k:'hr',label:'홈런',fmt:v=>String(v),worst:5,best:45,radar:1},
+ {k:'sb',label:'도루',fmt:v=>String(v),worst:0,best:40,radar:1},
+ {rate:1,k:'bbp',label:'BB%',fmt:pct,worst:.04,best:.16,radar:1},
+ {rate:1,k:'kp',label:'K%',fmt:pct,worst:.30,best:.12,radar:1,lower:1},
+ {k:'h',label:'안타',fmt:v=>String(v),worst:100,best:200}
+];
+const PM=[
+ {rate:1,k:'fip',label:'FIP',fmt:d2,worst:5.0,best:2.5,radar:1,key:1,lower:1},
+ {rate:1,k:'era',label:'ERA',fmt:d2,worst:5.0,best:2.5,radar:1,lower:1},
+ {rate:1,k:'whip',label:'WHIP',fmt:d2,worst:1.45,best:.95,radar:1,lower:1},
+ {rate:1,k:'k9',label:'K/9',fmt:v=>v.toFixed(1),worst:6,best:12,radar:1},
+ {rate:1,k:'bb9',label:'BB/9',fmt:v=>v.toFixed(1),worst:4,best:1.5,radar:1,lower:1},
+ {rate:1,k:'hr9',label:'HR/9',fmt:d2,worst:1.6,best:.6,radar:1,lower:1},
+ {k:'ip',label:'이닝',fmt:inn,worst:140,best:210},
+ {k:'so',label:'삼진',fmt:v=>String(v),worst:120,best:250}
+];
+const norm=(m,v)=>v==null?0:clamp((v-m.worst)/(m.best-m.worst),.04,1);
+const fm=(m,v)=>(v==null||!isFinite(v))?'-':m.fmt(v);
+// 기록이 없는 값(null)은 항상 맨 뒤로 보냅니다.
+const better=(m,a,b)=>{const na=a==null||!isFinite(a),nb=b==null||!isFinite(b);if(na&&nb)return 0;if(na)return 1;if(nb)return -1;return m.lower?a-b:b-a;};
+
+/* ---------- 데이터셋 로드 ---------- */
+let SEASONS=[],H=[],P=[],DATA={},GAMES={},BYID=new Map(),RAW_MAIN=null,HIST={state:'na'},META={source:'sample'},SAL={},SALINFO='',SALSTATE='idle',EXTRAS=null,DR={state:'idle',data:null},AW={state:'idle',data:null};
+const SHOW_KBO=/[?&]kbo=1/.test(location.search);
+const SHOW_SAL=/[?&]sal=1/.test(location.search); // 연봉은 지금은 숨김(주소 뒤에 ?sal=1 을 붙이면 보임)
+const coll=new Intl.Collator(undefined,{sensitivity:'base'});
+function validate(ds){
+  if(!ds||typeof ds!=='object')throw new Error('JSON 형식이 아닙니다.');
+  if(!Array.isArray(ds.seasons)||!ds.seasons.length)throw new Error('seasons 항목이 없습니다.');
+  if(!Array.isArray(ds.hitters)||!Array.isArray(ds.pitchers))throw new Error('hitters, pitchers 목록이 필요합니다.');
+  if(!ds.hitters.length&&!ds.pitchers.length)throw new Error('선수가 한 명도 없습니다.');
+}
+function loadDataset(ds){
+  validate(ds);
+  SEASONS=ds.seasons.map(Number).filter(Boolean).sort((a,b)=>a-b);
+  GAMES={};SEASONS.forEach(y=>{const g=ds.league&&ds.league[y]?Number(ds.league[y].games):0;if(g>0)GAMES[y]=g;});
+  // 그 시즌의 리그 기록이 있으면 그 값만 쓰고(없는 항목은 계산 불가), 아예 없으면 기본값을 씁니다.
+  const lgOf=y=>{const l=ds.league&&ds.league[y];return l?{obp:l.obp,slg:l.slg,cfip:l.cfip}:{obp:.315,slg:.410,cfip:3.10};};
+  DATA={};
+  const okP=p=>!!p&&p.id!=null&&!!p.name&&!!p.raw&&typeof p.raw==='object';
+  const mk=(arr,calc,ok,t)=>arr.filter(okP).map(p=>{
+    const id=String(p.id),d={};
+    SEASONS.forEach(y=>{const x=p.raw[y];if(x&&ok(x))d[y]=calc(x,lgOf(y));});
+    DATA[id]=d;
+    return {id,name:String(p.name),team:p.team||'',pos:p.pos||'',t};
+  }).filter(p=>Object.keys(DATA[p.id]).length).sort((a,b)=>coll.compare(a.name,b.name));
+  H=mk(ds.hitters,hitStats,x=>x.AB>0,'h');
+  P=mk(ds.pitchers,pitStats,x=>x.outs>0,'p');
+  BYID=new Map();H.concat(P).forEach(p=>BYID.set(p.id,p));
+  const L=lgOf(SEASONS[SEASONS.length-1]);
+  META={source:ds.source==='sample'?'sample':'real',generatedAt:ds.generatedAt||'',obp:L.obp,slg:L.slg,cfip:L.cfip,skipped:(ds.hitters.length+ds.pitchers.length)-(ds.hitters.filter(okP).length+ds.pitchers.filter(okP).length)};
+  if(!H.length&&!P.length)throw new Error('계산할 수 있는 기록이 없습니다.');
+}
+// 최근 시즌 데이터 a와 과거 데이터 b를 선수 단위로 합칩니다(같은 시즌은 a가 우선).
+function mergeDs(a,b){
+  const seasons=Array.from(new Set((b.seasons||[]).concat(a.seasons||[]).map(Number))).sort((x,y)=>x-y);
+  const league=Object.assign({},b.league||{},a.league||{});
+  const comb=(la,lb)=>{
+    const m=new Map();
+    for(const e of lb||[])m.set(String(e.id),{id:String(e.id),name:e.name,team:e.team,pos:e.pos,raw:Object.assign({},e.raw)});
+    for(const e of la||[]){
+      const k=String(e.id),t=m.get(k);
+      if(t){Object.assign(t.raw,e.raw);t.name=e.name||t.name;t.team=e.team||t.team;t.pos=e.pos||t.pos;}
+      else m.set(k,{id:k,name:e.name,team:e.team,pos:e.pos,raw:Object.assign({},e.raw)});
+    }
+    return Array.from(m.values());
+  };
+  return {source:a.source,generatedAt:a.generatedAt,seasons,league,hitters:comb(a.hitters,b.hitters),pitchers:comb(a.pitchers,b.pitchers)};
+}
+
+/* ---------- 상태 ---------- */
+const S={league:null,type:'hitter',tab:'profile',season:0,team:'',q:'',scope:'all',awMode:'year',brMode:'card',awKind:'MVP',teamSel:'',dyear:0,dround:'1',dN:50,favOnly:false,pid:'',cmp:[],trend:[],tmetric:'opsp',rmetric:'opsp',rankN:20,fav:[]};
+const SC=['var(--s1)','var(--s2)','var(--s3)','var(--s4)'];
+const TABS=[['profile','프로필'],['compare','비교'],['trend','추이'],['rank','순위'],['top','스탯 TOP'],['season','시즌·팀'],['awards','수상'],['draft','드래프트']];
+const lst=()=>S.type==='hitter'?H:P;
+const mets=()=>S.type==='hitter'?HM:PM;
+const find=id=>BYID.get(id);
+const has=(p,y)=>!!(p&&DATA[p.id]&&DATA[p.id][y]);
+const isFav=id=>S.fav.indexOf(id)>=0;
+const games=y=>GAMES[y]||(S.league==='kbo'?144:162);
+// 규정 타석 = 팀 경기 수 x 3.1, 규정 이닝 = 팀 경기 수 x 1.0
+function isQual(p,y){const d=DATA[p.id]&&DATA[p.id][y];if(!d)return false;return p.t==='h'?d.pa>=3.1*games(y):d.ip>=games(y);}
+function pool(y){
+  const q=S.q.trim().toLowerCase();
+  return lst().filter(p=>(!S.team||teamOf(p,y||S.season)===S.team)&&(!S.favOnly||isFav(p.id))&&(!q||p.name.toLowerCase().includes(q))&&(S.scope==='all'||!y||(S.scope==='qual'?isQual(p,y):!isQual(p,y))));
+}
+function poolSeason(){return pool(S.season).filter(p=>has(p,S.season));}
+function initSel(){
+  const m=mets()[0],y=S.season;
+  let ranked=lst().filter(p=>has(p,y)&&isQual(p,y));
+  if(ranked.length<3)ranked=lst().filter(p=>has(p,y));
+  ranked=ranked.sort((a,b)=>better(m,DATA[a.id][y][m.k],DATA[b.id][y][m.k]));
+  S.q='';
+  S.pid=ranked[0]?ranked[0].id:'';
+  S.cmp=ranked.slice(0,3).map(p=>p.id);S.trend=S.cmp.slice();
+  S.tmetric=m.k;S.rmetric=m.k;S.rankN=20;
+}
+function applyDataset(ds){
+  loadDataset(ds);RAW_MAIN=ds;
+  S.season=SEASONS[SEASONS.length-1];S.team='';S.favOnly=false;S.scope='all';
+  if(S.type==='hitter'&&!H.length)S.type='pitcher';
+  if(S.type==='pitcher'&&!P.length)S.type='hitter';
+  initSel();
+}
+
+const dsKey=()=>'mlbstats.ds.'+S.league,favKey=()=>'mlbstats.fav.'+S.league,ctKey=()=>'mlbstats.contracts.'+S.league;
+let CT={byId:new Map(),byName:new Map(),n:0};
+const normName=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9가-힣]/g,'');
+const money=t=>{const v=String(t==null?'':t).trim();if(!v)return null;const x=Number(v.replace(/[$,\s원]/g,''));return Number.isFinite(x)?x:null;};
+const usd=v=>v==null?'-':'$'+Math.round(v).toLocaleString('en-US');
+function parseCsv(text){
+  const rows=[];let row=[],cur='',q=false;
+  const t=String(text).replace(/^\uFEFF/,'');
+  for(let i=0;i<t.length;i++){
+    const c=t[i];
+    if(q){if(c==='"'){if(t[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=c;}
+    else if(c==='"')q=true;
+    else if(c===','){row.push(cur);cur='';}
+    else if(c==='\n'||c==='\r'){if(c==='\r'&&t[i+1]==='\n')i++;row.push(cur);rows.push(row);row=[];cur='';}
+    else cur+=c;
+  }
+  if(cur!==''||row.length){row.push(cur);rows.push(row);}
+  return rows;
+}
+const CT_HDR={name:['이름','선수','선수명','name','player'],id:['선수id','id','mlbam','mlbamid'],year:['연도','시즌','year','season'],salary:['연봉','salary'],start:['계약시작','시작','start'],end:['계약종료','종료','만료','end'],total:['계약총액','총액','total'],note:['비고','메모','note']};
+function loadContracts(text){
+  const rows=parseCsv(text).filter(r=>r.some(c=>String(c).trim()));
+  if(rows.length<2)throw new Error('CSV에 데이터 행이 없습니다.');
+  const head=rows[0].map(h=>String(h).trim().toLowerCase().replace(/\s+/g,''));
+  const ci={};for(const k in CT_HDR)ci[k]=head.findIndex(h=>CT_HDR[k].indexOf(h)>=0);
+  if(ci.name<0&&ci.id<0)throw new Error('이름 또는 선수ID 열이 필요합니다.');
+  if(ci.salary<0&&ci.total<0)throw new Error('연봉 또는 계약총액 열이 필요합니다.');
+  const byId=new Map(),byName=new Map();let n=0;
+  for(const r of rows.slice(1)){
+    const g=k=>ci[k]>=0?String(r[ci[k]]==null?'':r[ci[k]]).trim():'';
+    const rec={year:g('year'),salary:money(g('salary')),start:g('start'),end:g('end'),total:money(g('total')),note:g('note')};
+    const id=g('id'),nn=normName(g('name'));
+    if(!id&&!nn)continue;
+    if(id){if(!byId.has(id))byId.set(id,[]);byId.get(id).push(rec);}
+    if(nn){if(!byName.has(nn))byName.set(nn,[]);byName.get(nn).push(rec);}
+    n++;
+  }
+  CT={byId,byName,n};
+}
+function salaryOf(p,y){
+  if(!SHOW_SAL)return null;
+  const c=contractsOf(p).find(r=>String(r.year)===String(y)&&r.salary!=null);
+  if(c)return c.salary;
+  const h=SAL[p.id];return h&&h[y]!=null?h[y]:null;
+}
+function contractsOf(p){return (CT.byId.get(p.id)||CT.byName.get(normName(p.name))||[]).slice().sort((a,b)=>String(a.year).localeCompare(String(b.year)));}
+function contractHtml(p){
+  if(!SHOW_SAL)return '';
+  const rows=contractsOf(p);
+  const sh=SAL[p.id]?Object.keys(SAL[p.id]).sort():[];
+  if(!rows.length&&!sh.length&&S.league!=='mlb')return '';
+  let h='<h2>연봉·계약</h2><div class="card">';
+  if(sh.length){
+    h+='<div class="salgrid">'+sh.map(y=>'<div>'+y+'<b>'+usd(SAL[p.id][y])+'</b></div>').join('')+'</div><p class="hint" style="margin:0 0 12px">연도별 연봉 ('+sh[0]+'–'+sh[sh.length-1]+'년, 오픈 데이터). 한 해에 팀이 둘이면 합계입니다.</p>';
+  }
+  if(rows.length){
+    h+='<div class="scroll"><table><thead><tr><th>연도</th><th>연봉</th><th>계약 기간</th><th>계약 총액</th><th>비고</th></tr></thead><tbody>'+rows.map(r=>'<tr><td>'+esc(r.year||'-')+'</td><td>'+usd(r.salary)+'</td><td>'+esc((r.start||r.end)?(r.start||'?')+' ~ '+(r.end||'?'):'-')+'</td><td>'+usd(r.total)+'</td><td>'+esc(r.note)+'</td></tr>').join('')+'</tbody></table></div><p class="hint">직접 올린 CSV 자료 기준입니다.</p>';
+  }else{
+    const nm=encodeURIComponent(p.name);
+    h+='<p style="margin:0 0 10px;font-size:14px">'+(sh.length?'계약 기간과 2017년 이후 연봉은 자동으로 가져오지 못합니다.':(SALSTATE==='ok'?'이 선수는 1985–2016년 연봉 자료에 없습니다. 계약 기간과 2017년 이후 연봉도 자동으로 가져오지 못합니다.':'이 선수의 연봉·계약 정보가 아직 없습니다.'))+' 아래에서 확인하거나, 맨 아래 “데이터” 상자에서 CSV로 올리면 이 자리에 표시됩니다.</p><div class="links"><a href="https://www.google.com/search?q='+nm+'+MLB+contract+salary+spotrac" target="_blank" rel="noopener noreferrer">연봉·계약 검색</a><a href="https://www.baseball-reference.com/search/search.fcgi?search='+nm+'" target="_blank" rel="noopener noreferrer">Baseball-Reference</a><a href="https://www.mlb.com/player/'+esc(p.id)+'" target="_blank" rel="noopener noreferrer">MLB.com 선수 페이지</a></div>';
+  }
+  return h+'</div>';
+}
+function enterLeague(lg){
+  S.league=lg;S.type='hitter';S.tab='profile';
+  let favRaw=lsGet('mlbstats.fav.'+lg);if(favRaw==null&&lg==='mlb')favRaw=lsGet('mlbstats.fav');
+  S.fav=[];try{const f=JSON.parse(favRaw||'[]');if(Array.isArray(f))S.fav=f.map(String);}catch(e){}
+  CT={byId:new Map(),byName:new Map(),n:0};
+  try{const ct=lsGet('mlbstats.contracts.'+lg);if(ct)loadContracts(ct);}catch(e){}
+  let stored=lsGet('mlbstats.ds.'+lg);if(stored==null&&lg==='mlb')stored=lsGet('mlbstats.ds');
+  let ok=false;
+  if(stored){try{applyDataset(JSON.parse(stored));ok=true;}catch(e){lsDel('mlbstats.ds.'+lg);}}
+  if(!ok)applyDataset(sampleDataset(lg));
+  say('');
+  render();
+  // 직접 호스팅한 주소(GitHub Pages 등)에서는 같은 폴더의 data/kbo.json, data/mlb.json을 자동으로 읽습니다.
+  // 읽지 못하면(게시 페이지, 파일 직접 열기 등) 조용히 넘어가고 위의 데이터를 그대로 씁니다.
+  try{
+    fetch('data/'+lg+'.json',{cache:'no-store'})
+      .then(function(r){if(!r.ok)throw new Error('no data');return r.json();})
+      .then(function(ds){
+        if(S.league!==lg)return;
+        applyDataset(ds);META.auto=true;render();
+        // 과거 기록 파일이 있으면 이어서 불러와 합칩니다(용량이 커서 최근 기록을 먼저 보여 준 뒤 불러옵니다).
+        if(lg!=='mlb')return;
+        HIST={state:'loading'};render();
+        return fetch('data/'+lg+'-history.json',{cache:'no-store'})
+          .then(function(r){
+            if(r.status===404){const e=new Error('missing');e.missing=true;throw e;}
+            if(!r.ok)throw new Error('서버 응답 '+r.status);
+            return r.json();
+          })
+          .then(function(h){
+            if(S.league!==lg)return;
+            if(!h||!Array.isArray(h.seasons)||!h.seasons.length)throw new Error('파일에 시즌 기록이 없습니다(아직 받는 중이거나 비어 있음)');
+            const merged=mergeDs(ds,h);
+            loadDataset(merged);RAW_MAIN=ds;META.auto=true;
+            const ys=h.seasons.map(Number);META.hist=[Math.min.apply(null,ys),Math.max.apply(null,ys)];
+            HIST={state:'ok'};
+            render();
+          }).catch(function(e){
+            if(S.league!==lg)return;
+            HIST=e&&e.missing?{state:'missing'}:{state:'error',msg:(e&&e.message)||'알 수 없는 오류'};
+            render();
+          });
+      })
+      .catch(function(){});
+    if(lg==='mlb'){
+      if(SHOW_SAL){SALSTATE='loading';
+      fetch('data/mlb-salaries.json',{cache:'no-store'})
+        .then(function(r){if(r.status===404){const e=new Error('missing');e.missing=true;throw e;}if(!r.ok)throw new Error('서버 응답 '+r.status);return r.json();})
+        .then(function(j){
+          if(S.league!==lg)return;
+          SAL=j.salaries||{};SALINFO=j.source||'오픈 데이터';
+          if(!Object.keys(SAL).length)throw new Error('파일에 연봉 자료가 없습니다');
+          SALSTATE='ok';render();
+        })
+        .catch(function(e){if(S.league!==lg)return;SALSTATE=e&&e.missing?'missing':'error:'+((e&&e.message)||'알 수 없는 오류');render();});}
+      fetch('data/mlb-seasons.json',{cache:'no-store'})
+        .then(function(r){if(!r.ok)throw new Error('no seasons');return r.json();})
+        .then(function(j){if(S.league!==lg)return;EXTRAS=j;render();})
+        .catch(function(){});
+    }
+    if(lg==='mlb'){
+      AW={state:'loading',data:null};
+      fetch('data/mlb-awards.json',{cache:'no-store'})
+        .then(function(r){if(r.status===404){const e=new Error('missing');e.missing=true;throw e;}if(!r.ok)throw new Error('서버 응답 '+r.status);return r.json();})
+        .then(function(j){
+          if(S.league!==lg)return;
+          if(!j||!j.awards||!Object.keys(j.awards).length)throw new Error('파일에 수상 기록이 없습니다');
+          AW={state:'ok',data:j};render();
+        })
+        .catch(function(e){if(S.league!==lg)return;AW=e&&e.missing?{state:'missing'}:{state:'error',msg:(e&&e.message)||'알 수 없는 오류'};render();});
+    }
+    fetch('data/contracts-'+lg+'.csv',{cache:'no-store'})
+      .then(function(r){if(!r.ok)throw new Error('no csv');return r.text();})
+      .then(function(t){if(S.league!==lg)return;loadContracts(t);render();})
+      .catch(function(){});
+  }catch(e){}
+}
+
+/* ---------- 차트 ---------- */
+function radar(axes,series){
+  const cx=170,cy=160,R=100,n=axes.length;
+  const ang=i=>-Math.PI/2+2*Math.PI*i/n;
+  const pt=(i,f)=>[(cx+Math.cos(ang(i))*R*f).toFixed(1),(cy+Math.sin(ang(i))*R*f).toFixed(1)];
+  let s='<svg viewBox="0 0 340 320" role="img" aria-label="레이더 차트" class="chart">';
+  [.25,.5,.75,1].forEach(f=>{s+='<polygon points="'+axes.map((_,i)=>pt(i,f).join(',')).join(' ')+'" fill="none" stroke="var(--line)"/>';});
+  axes.forEach((a,i)=>{
+    const e=pt(i,1);s+='<line x1="'+cx+'" y1="'+cy+'" x2="'+e[0]+'" y2="'+e[1]+'" stroke="var(--line)"/>';
+    const l=pt(i,1.18),c=Math.cos(ang(i));
+    s+='<text x="'+l[0]+'" y="'+(+l[1]+4)+'" text-anchor="'+(Math.abs(c)<.2?'middle':(c>0?'start':'end'))+'" class="axl">'+a+'</text>';
+  });
+  series.forEach(se=>{s+='<polygon points="'+se.vals.map((v,i)=>pt(i,v).join(',')).join(' ')+'" fill="'+se.color+'" fill-opacity=".14" stroke="'+se.color+'" stroke-width="2" stroke-linejoin="round"/>';});
+  return s+'</svg>';
+}
+function lineChart(series,m,seasons){
+  const W=360,Hh=230,l=44,r=14,t=16,b=28;
+  const all=series.flatMap(s=>s.vals).filter(v=>v!=null&&isFinite(v));
+  if(!all.length)return '<p class="hint" style="text-align:center">이 지표는 선택한 선수들의 해당 시즌에 기록이 없습니다.</p>';
+  let mn=Math.min.apply(null,all),mx=Math.max.apply(null,all);
+  if(mn===mx){mn-=1;mx+=1;}
+  const pad=(mx-mn)*.15;mn-=pad;mx+=pad;
+  const N=Math.max(seasons.length-1,1);
+  const X=i=>l+(W-l-r)*i/N,Y=v=>t+(Hh-t-b)*(1-(v-mn)/(mx-mn));
+  let s='<svg viewBox="0 0 '+W+' '+Hh+'" role="img" aria-label="시즌 추이 그래프" class="chart">';
+  for(let k=0;k<4;k++){
+    const v=mn+(mx-mn)*k/3,y=Y(v).toFixed(1);
+    s+='<line x1="'+l+'" x2="'+(W-r)+'" y1="'+y+'" y2="'+y+'" stroke="var(--line)"/><text x="'+(l-6)+'" y="'+(+y+4)+'" text-anchor="end" class="axl">'+m.fmt(v)+'</text>';
+  }
+  const step=Math.max(1,Math.ceil(seasons.length/8));
+  seasons.forEach((y,i)=>{if(i%step===0||i===seasons.length-1)s+='<text x="'+X(i)+'" y="'+(Hh-8)+'" text-anchor="middle" class="axl">'+y+'</text>';});
+  series.forEach(se=>{
+    let run=[];
+    const flush=()=>{if(run.length>1)s+='<polyline fill="none" stroke="'+se.color+'" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="'+run.join(' ')+'"/>';run=[];};
+    se.vals.forEach((v,i)=>{if(v==null||!isFinite(v)){flush();return;}run.push(X(i).toFixed(1)+','+Y(v).toFixed(1));});
+    flush();
+    const pr=seasons.length>40?2:3.5;
+    se.vals.forEach((v,i)=>{if(v!=null&&isFinite(v))s+='<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(v).toFixed(1)+'" r="'+pr+'" fill="'+se.color+'"/>';});
+  });
+  return s+'</svg>';
+}
+
+/* ---------- 컨트롤 조각 ---------- */
+const teamOf=(p,y)=>{const d=DATA[p.id]&&DATA[p.id][y];return (d&&d.team)||p.team||'';};
+const qlabel=()=>S.type==='hitter'?'규정 타석 이상':'규정 이닝 이상';
+const seasonsOf=p=>Object.keys(DATA[p.id]||{}).map(Number).sort((a,b)=>a-b);
+function badge(p,y){return isQual(p,y)?'<span class="bdg q">규정</span>':'<span class="bdg">미달</span>';}
+function optHtml(p,val){const t=teamOf(p,S.season);return '<option value="'+esc(p.id)+'"'+(p.id===val?' selected':'')+'>'+esc(p.name)+(t?' ('+esc(t)+')':'')+'</option>';}
+// 선수 목록을 '규정 이상'과 '규정 미달'로 나눠서 보여 줍니다.
+function groupedOptions(list,val){
+  const q=[],o=[];list.forEach(p=>(isQual(p,S.season)?q:o).push(p));
+  let h='';
+  if(q.length)h+='<optgroup label="'+qlabel()+' ('+q.length+'명)">'+q.map(p=>optHtml(p,val)).join('')+'</optgroup>';
+  if(o.length)h+='<optgroup label="규정 미달 ('+o.length+'명)">'+o.map(p=>optHtml(p,val)).join('')+'</optgroup>';
+  return h;
+}
+function selPlayer(key,val,list){return '<label class="lbl">선수<select data-act="set" data-key="'+key+'">'+groupedOptions(list,val)+'</select></label>';}
+function selSeason(){
+  return '<label class="lbl">시즌<select data-act="set" data-key="season">'+SEASONS.slice().reverse().map(y=>'<option value="'+y+'"'+(y===S.season?' selected':'')+'>'+y+'</option>').join('')+'</select></label>';
+}
+function selMetric(key,val){
+  return '<label class="lbl">지표<select data-act="set" data-key="'+key+'">'+mets().map(m=>'<option value="'+m.k+'"'+(m.k===val?' selected':'')+'>'+m.label+'</option>').join('')+'</select></label>';
+}
+function picker(key,needSeason){
+  const sel=S[key];
+  let h='<div class="chips">'+sel.map((id,i)=>{
+    const p=find(id);if(!p)return '';
+    const miss=needSeason&&!has(p,S.season);
+    return '<button class="chip'+(miss?' dim':'')+'" data-act="rm" data-key="'+key+'" data-id="'+esc(id)+'" aria-pressed="true" aria-label="'+esc(p.name)+' 빼기"><i style="background:'+SC[i]+'"></i>'+esc(p.name)+(miss?' (기록 없음)':'')+' ×</button>';
+  }).join('')+'</div>';
+  if(sel.length<4){
+    const opts=pool(S.season).filter(p=>sel.indexOf(p.id)<0&&has(p,S.season));
+    h+='<div class="controls"><label class="lbl">선수 추가 ('+sel.length+'/4) · '+S.season+' 시즌 선수 중에서<select data-act="add" data-key="'+key+'"><option value="">'+(opts.length?'선수를 고르세요':'추가할 선수가 없습니다')+'</option>'+groupedOptions(opts,'')+'</select></label></div>';
+  }
+  return h;
+}
+function filtersHtml(){
+  const all=lst().filter(p=>has(p,S.season));
+  const nq=all.filter(p=>isQual(p,S.season)).length;
+  const teams=Array.from(new Set(all.map(p=>teamOf(p,S.season)).filter(Boolean))).sort();
+  const nfav=lst().filter(p=>isFav(p.id)).length;
+  const sc=[['all','전체 '+all.length+'명'],['qual',qlabel()+' '+nq+'명'],['under','규정 미달 '+(all.length-nq)+'명']];
+  return '<div class="filters"><div class="scope" role="group" aria-label="선수 범위">'+sc.map(a=>'<button data-act="scope" data-v="'+a[0]+'" aria-pressed="'+(S.scope===a[0])+'">'+a[1]+'</button>').join('')+'</div></div><div class="filters" style="margin-top:8px"><label class="lbl grow">선수 검색<input type="search" id="q" placeholder="이름을 입력하세요" value="'+esc(S.q)+'" autocomplete="off"></label><label class="lbl">팀<select data-act="set" data-key="team"><option value="">전체 팀</option>'+teams.map(t=>'<option value="'+esc(t)+'"'+(t===S.team?' selected':'')+'>'+esc(t)+'</option>').join('')+'</select></label><button class="chip" data-act="favonly" aria-pressed="'+S.favOnly+'">★ 즐겨찾기만 ('+nfav+')</button></div><div class="count" id="count"></div>';
+}
+function updateCount(){
+  const el=document.getElementById('count');if(!el)return;
+  if(S.tab==='season'||S.tab==='draft'||S.tab==='awards'){el.textContent='';return;}
+  const all=lst().filter(p=>has(p,S.season));
+  const nq=all.filter(p=>isQual(p,S.season)).length;
+  el.textContent=S.season+' 시즌 · '+poolSeason().length+'명 표시 중 (전체 '+all.length+'명 = '+qlabel()+' '+nq+'명 + 규정 미달 '+(all.length-nq)+'명)';
+}
+function bannerHtml(){return '<div class="banner"><span>규정 미달 선수도 포함되어 있어요. 타율·OPS+·ERA 같은 비율 지표는 표본이 적은 선수가 위에 올 수 있습니다.</span><button class="chip" data-act="qualon">규정만 보기</button></div>';}
+const emptyMsg='<div class="empty">조건에 맞는 선수가 없습니다. 팀, 검색어, 규정 필터를 바꿔 보세요.</div>';
+const noRecMsg=m=>'<div class="empty">이 시즌에는 ‘'+m.label+'’ 기록이 없습니다. 옛 시즌에는 기록되지 않은 항목이 있습니다.</div>';
+
+/* ---------- 화면 ---------- */
+// 이 시즌에서 선수 p의 지표 m 순위. 비율 지표는 규정 이상 선수끼리만 매깁니다.
+function rankOf(p,m,y){
+  const v=DATA[p.id][y][m.k];
+  if(v==null||!isFinite(v))return null;
+  const base=lst().filter(q=>has(q,y)&&DATA[q.id][y][m.k]!=null&&(!m.rate||isQual(q,y)));
+  if(!base.some(q=>q.id===p.id))return null;
+  let r=1;
+  for(const q of base){if(better(m,DATA[q.id][y][m.k],v)<0)r++;}
+  return {r,n:base.length};
+}
+function ranksHtml(p){
+  const y=S.season;
+  return '<h2>이 선수의 스탯별 순위</h2><div class="ranks">'+mets().map(x=>{
+    const k=rankOf(p,x,y);
+    return '<div class="rk"><div class="n">'+x.label+'</div><div class="r">'+(k?k.r+'위':'-')+'</div><div class="of">'+(k?'/ '+k.n+'명':(DATA[p.id][y][x.k]==null?'기록 없음':'규정 미달'))+'</div></div>';
+  }).join('')+'</div><p class="hint">비율 지표(OPS+, 타율, ERA 등)는 규정 타석·이닝 이상 선수끼리, 홈런·삼진 같은 누적 지표는 전체 선수 기준 순위입니다.</p>';
+}
+function vProfile(){
+  const list=poolSeason();
+  let h='<div class="controls">'+(list.length?selPlayer('pid',S.pid,list):'')+selSeason()+'</div>';
+  const p=find(S.pid);
+  if(!list.length||!p||!has(p,S.season))return h+emptyMsg;
+  const m=mets(),d=DATA[p.id][S.season],fav=isFav(p.id);
+  h+='<div class="who"><div><b>'+esc(p.name)+'</b><span>'+esc(joinDot([teamOf(p,S.season),p.pos,salaryOf(p,S.season)!=null?S.season+' 연봉 '+usd(salaryOf(p,S.season)):(SHOW_SAL&&SALSTATE==='ok'?(S.season>2016?S.season+' 연봉: 자료 없음(공개 자료는 2016년까지)':S.season+' 연봉: 이 선수 자료 없음'):'')]))+'</span>'+badge(p,S.season)+'</div><button class="favbtn" data-act="fav" data-id="'+esc(p.id)+'" aria-pressed="'+fav+'">'+(fav?'★ 즐겨찾기 해제':'☆ 즐겨찾기 추가')+'</button></div>';
+  h+='<div class="board">'+m.map(x=>'<div class="cell'+(x.key?' key':'')+'"><div class="v">'+fm(x,d[x.k])+'</div><div class="n">'+x.label+'</div></div>').join('')+'</div>';
+  h+=contractHtml(p);
+  h+=ranksHtml(p);
+  const bars=m.filter(x=>x.radar&&d[x.k]!=null);
+  h+='<h2>기준 범위 안에서의 위치</h2><div class="card"><div class="bars">'+bars.map(x=>'<div class="bar"><span>'+x.label+'</span><div class="tr"><div class="fl" style="width:'+(norm(x,d[x.k])*100).toFixed(0)+'%"></div></div><span class="val">'+fm(x,d[x.k])+'</span></div>').join('')+'</div><p class="hint">막대가 길수록 좋은 수치입니다. 삼진 비율이나 ERA처럼 낮을수록 좋은 지표도 같은 방향으로 맞췄습니다.</p></div>';
+  h+='<h2>시즌별 기록</h2><div class="card scroll"><table><thead><tr><th>시즌</th><th>팀</th>'+(SHOW_SAL?'<th>연봉</th>':'')+m.map(x=>'<th>'+x.label+'</th>').join('')+'</tr></thead><tbody>'+seasonsOf(p).map(y=>{const q=DATA[p.id][y];const tm=teamOf(p,y);return '<tr'+(y===S.season?' class="on"':'')+'><td>'+y+'</td><td>'+(tm?'<button class="tl" data-act="team" data-t="'+esc(tm)+'" data-y="'+y+'">'+esc(tm)+'</button>':'')+'</td>'+(SHOW_SAL?'<td>'+usd(salaryOf(p,y))+'</td>':'')+m.map(x=>'<td>'+fm(x,q[x.k])+'</td>').join('')+'</tr>';}).join('')+'</tbody></table></div><p class="hint">'+(SHOW_SAL?'연봉 열은 1985–2016년만 자료가 있습니다(그 외는 -). ':'')+'팀 이름을 누르면 그 시즌 팀 화면으로 이동합니다.</p>';
+  return h;
+}
+function vCompare(){
+  const m=mets();
+  let h='<div class="controls">'+selSeason()+'</div><p class="hint" style="margin:0">최대 4명까지 고를 수 있습니다. 이름을 누르면 뺍니다.</p>'+picker('cmp',true);
+  const ps=S.cmp.map((id,i)=>({p:find(id),c:SC[i]})).filter(o=>has(o.p,S.season));
+  if(ps.length<2)return h+'<div class="empty">비교할 선수를 2명 이상 선택하세요.</div>';
+  const val=(o,x)=>DATA[o.p.id][S.season][x.k];
+  const rm=m.filter(x=>x.radar&&ps.every(o=>val(o,x)!=null));
+  if(rm.length>=3){
+    const series=ps.map(o=>({color:o.c,vals:rm.map(x=>norm(x,val(o,x)))}));
+    h+='<div class="card" style="margin-top:12px">'+radar(rm.map(x=>x.label),series)+'<div class="legend">'+ps.map(o=>'<span><i style="background:'+o.c+'"></i>'+esc(o.p.name)+'</span>').join('')+'</div></div>';
+  }else h+='<div class="empty">이 시즌에는 레이더 차트를 그릴 만큼 공통 기록이 없습니다. 아래 표를 보세요.</div>';
+  h+='<h2>'+S.season+' 시즌 수치</h2><div class="card scroll"><table><thead><tr><th>지표</th>'+ps.map(o=>'<th>'+esc(short(o.p.name))+'</th>').join('')+'</tr></thead><tbody>'+m.map(x=>{
+    const vals=ps.map(o=>val(o,x));
+    const ok=vals.filter(v=>v!=null);
+    const bestV=ok.length?(x.lower?Math.min.apply(null,ok):Math.max.apply(null,ok)):null;
+    return '<tr><td>'+x.label+'</td>'+vals.map(v=>'<td'+(v!=null&&v===bestV?' class="best"':'')+'>'+fm(x,v)+'</td>').join('')+'</tr>';
+  }).join('')+'</tbody></table></div><p class="hint">빨간색 굵은 글씨가 그 지표에서 가장 좋은 선수입니다. 기록이 없는 항목은 -로 표시합니다.</p>';
+  return h;
+}
+function vTrend(){
+  const m=mets().find(x=>x.k===S.tmetric)||mets()[0];
+  let h='<div class="controls">'+selMetric('tmetric',m.k)+selSeason()+'</div><p class="hint" style="margin:0">최대 4명까지 고를 수 있습니다. 이름을 누르면 뺍니다. 선수의 전체 기록(데뷔~마지막 시즌)을 그립니다.</p>'+picker('trend',false);
+  const ps=S.trend.map((id,i)=>({p:find(id),c:SC[i]})).filter(o=>o.p);
+  if(!ps.length)return h+'<div class="empty">그래프에 표시할 선수를 선택하세요.</div>';
+  const ys=[];ps.forEach(o=>seasonsOf(o.p).forEach(y=>ys.push(y)));
+  const lo=Math.min.apply(null,ys),hi=Math.max.apply(null,ys);
+  const span=SEASONS.filter(y=>y>=lo&&y<=hi);
+  const series=ps.map(o=>({color:o.c,vals:span.map(y=>has(o.p,y)?DATA[o.p.id][y][m.k]:null)}));
+  h+='<div class="card" style="margin-top:12px">'+lineChart(series,m,span)+'<div class="legend">'+ps.map(o=>'<span><i style="background:'+o.c+'"></i>'+esc(o.p.name)+'</span>').join('')+'</div></div>';
+  h+='<h2>'+m.label+' 연도별 값</h2><div class="card scroll"><table><thead><tr><th>선수</th>'+span.map(y=>'<th>'+y+'</th>').join('')+'</tr></thead><tbody>'+ps.map(o=>'<tr><td>'+esc(o.p.name)+'</td>'+span.map(y=>'<td>'+(has(o.p,y)?fm(m,DATA[o.p.id][y][m.k]):'-')+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
+  return h;
+}
+function vRank(){
+  const m=mets().find(x=>x.k===S.rmetric)||mets()[0];
+  let h='<div class="controls">'+selMetric('rmetric',m.k)+selSeason()+'</div>';
+  if(m.rate&&S.scope==='all')h+=bannerHtml();
+  const rows=poolSeason().map(p=>({p,v:DATA[p.id][S.season][m.k]})).filter(r=>r.v!=null&&isFinite(r.v)).sort((a,b)=>better(m,a.v,b.v));
+  if(!poolSeason().length)return h+emptyMsg;
+  if(!rows.length)return h+noRecMsg(m);
+  h+='<div class="rank">'+rows.slice(0,S.rankN).map((r,i)=>'<div class="row"><span class="no">'+(i+1)+'</span><div><div class="nm">'+esc(r.p.name)+(isFav(r.p.id)?' ★':'')+badge(r.p,S.season)+'</div><div class="tm">'+esc(joinDot([teamOf(r.p,S.season),r.p.pos]))+'</div></div><span class="rv">'+fm(m,r.v)+'</span><div class="gauge"><span style="width:'+(norm(m,r.v)*100).toFixed(0)+'%"></span></div></div>').join('')+'</div>';
+  if(rows.length>S.rankN)h+='<button class="chip more" data-act="more">'+Math.min(20,rows.length-S.rankN)+'명 더 보기 (전체 '+rows.length+'명)</button>';
+  h+='<p class="hint">'+(m.lower?'낮을수록 좋은 지표라 값이 작은 선수가 위에 옵니다.':'값이 큰 선수가 위에 옵니다.')+' 파란 “규정” 표시는 '+qlabel()+'인 선수입니다.</p>';
+  return h;
+}
+function vTop(){
+  const m=mets();
+  let h='<div class="controls">'+selSeason()+'</div>';
+  const list=poolSeason();
+  if(!list.length)return h+emptyMsg;
+  if(S.scope==='all'&&m.some(x=>x.rate))h+=bannerHtml();
+  h+='<div class="tops">'+m.map(x=>{
+    const rows=list.map(p=>({p,v:DATA[p.id][S.season][x.k]})).filter(r=>r.v!=null&&isFinite(r.v)).sort((a,b)=>better(x,a.v,b.v)).slice(0,5);
+    return '<div class="topcard"><div class="th"><b>'+x.label+'</b><button class="link" data-act="tomet" data-m="'+x.k+'">전체 순위 ›</button></div>'+(rows.length?'<ol>'+rows.map((r,i)=>'<li><span class="no">'+(i+1)+'</span><span class="nm">'+esc(r.p.name)+badge(r.p,S.season)+'</span><span class="tm">'+esc(teamOf(r.p,S.season))+'</span><span class="v">'+fm(x,r.v)+'</span></li>').join('')+'</ol>':'<p class="hint">이 시즌에는 기록이 없습니다.</p>')+'</div>';
+  }).join('')+'</div><p class="hint">스탯마다 상위 5명입니다. “전체 순위”를 누르면 그 스탯의 전체 순위표로 이동합니다.</p>';
+  return h;
+}
+const koRound=d=>/world/i.test(d)?'월드시리즈':/league champ/i.test(d)?'리그 챔피언십시리즈':/division/i.test(d)?'디비전시리즈':/wild/i.test(d)?'와일드카드':d;
+function teamsInSeason(y){
+  const m=new Map();
+  for(const arr of [H,P])for(const p of arr){const d=DATA[p.id][y];if(!d)continue;const t=d.team||p.team;if(t)m.set(t,(m.get(t)||0)+1);}
+  return m;
+}
+const FM=(arr,k,v)=>fm(arr.find(x=>x.k===k),v);
+function pLink(p){return '<button class="tl" data-act="gop" data-id="'+esc(p.id)+'">'+esc(p.name)+'</button>';}
+function teamRecord(y,team){
+  const ex=EXTRAS&&EXTRAS.seasons&&EXTRAS.seasons[y];if(!ex)return null;
+  for(const d of ex.standings||[])for(const t of d.teams)if(t.n===team)return {t,d};
+  return null;
+}
+function standingsHtml(y){
+  const ex=EXTRAS&&EXTRAS.seasons&&EXTRAS.seasons[y];
+  const have=teamsInSeason(y);
+  if(!ex||!ex.standings||!ex.standings.length){
+    const names=Array.from(have.keys()).sort();
+    return '<div class="empty">이 시즌의 순위 자료가 없습니다('+(EXTRAS?'수집 파일에 이 시즌이 없음':'순위 파일을 아직 못 불러왔거나 수집 전')+'). 선수 기록에 나온 팀 목록을 대신 보여 드립니다.</div>'+(names.length?'<div class="card" style="margin-top:12px"><div class="links">'+names.map(n=>'<button class="chip" data-act="team" data-t="'+esc(n)+'">'+esc(n)+' ('+have.get(n)+'명)</button>').join('')+'</div></div>':'');
+  }
+  return ex.standings.map(d=>{
+    const title=[d.lg,d.dv].filter(Boolean).join(' · ')||'순위';
+    return '<div class="stand"><h3>'+esc(title)+'</h3><div class="card scroll"><table><thead><tr><th>팀</th><th>순위</th><th>승</th><th>패</th><th>승률</th><th>게임차</th><th>선수 기록</th></tr></thead><tbody>'+d.teams.map(t=>'<tr><td><button class="tl" data-act="team" data-t="'+esc(t.n)+'">'+esc(t.n)+'</button>'+(d.dv?(t.champ?'<span class="bdg q">지구 우승</span>':''):(t.rank===1?'<span class="bdg q">리그 1위</span>':''))+'</td><td>'+(t.rank||'-')+'</td><td>'+t.w+'</td><td>'+t.l+'</td><td>'+esc(t.pct)+'</td><td>'+esc(t.gb)+'</td><td>'+(have.get(t.n)||0)+'명</td></tr>').join('')+'</tbody></table></div></div>';
+  }).join('');
+}
+function postHtml(y,team){
+  const ex=EXTRAS&&EXTRAS.seasons&&EXTRAS.seasons[y];
+  let list=(ex&&ex.post)||[];
+  if(team)list=list.filter(r=>r.w===team||r.l===team);
+  if(!list.length)return '';
+  return '<h2>'+(team?'이 팀의 포스트시즌':'포스트시즌 시리즈 결과(표)')+'</h2><div class="card scroll"><table><thead><tr><th>라운드</th><th>승리</th><th>패배</th><th>결과</th></tr></thead><tbody>'+list.map(r=>'<tr><td>'+esc(koRound(r.round))+'</td><td><button class="tl" data-act="team" data-t="'+esc(r.w)+'">'+esc(r.w)+'</button></td><td><button class="tl" data-act="team" data-t="'+esc(r.l)+'">'+esc(r.l)+'</button></td><td>'+esc(r.score)+' ('+r.games+'경기)</td></tr>').join('')+'</tbody></table></div>';
+}
+function teamDetailHtml(y,team){
+  const rh=H.filter(p=>has(p,y)&&teamOf(p,y)===team).sort((a,b)=>DATA[b.id][y].pa-DATA[a.id][y].pa);
+  const rp=P.filter(p=>has(p,y)&&teamOf(p,y)===team).sort((a,b)=>DATA[b.id][y].ip-DATA[a.id][y].ip);
+  const rec=teamRecord(y,team);
+  let h='<button class="chip" data-act="teamback">← '+y+' 시즌 순위로</button><h2 style="margin-top:14px">'+esc(team)+' · '+y+'</h2>';
+  if(rec)h+='<p style="margin:0 0 6px">'+esc([rec.d.lg,rec.d.dv].filter(Boolean).join(' · '))+' '+(rec.t.rank?rec.t.rank+'위':'')+' · <b>'+rec.t.w+'승 '+rec.t.l+'패</b> (승률 '+esc(rec.t.pct)+')'+(rec.t.champ?' <span class="bdg q">지구 우승</span>':'')+'</p>';
+  h+=postHtml(y,team);
+  if(!rh.length&&!rp.length)return h+'<div class="empty">이 시즌 이 팀으로 잡힌 선수 기록이 없습니다. 팀 이름이 순위표와 선수 기록에서 다르게 적혀 있을 수 있습니다.</div>';
+  const sal=p=>usd(salaryOf(p,y));
+  h+='<h2>타자 최종 기록 ('+rh.length+'명)</h2><div class="card scroll"><table><thead><tr><th>선수</th><th>구분</th><th>타석</th><th>타율</th><th>출루율</th><th>장타율</th><th>OPS+</th><th>홈런</th><th>도루</th>'+(SHOW_SAL?'<th>연봉</th>':'')+'</tr></thead><tbody>'+rh.map(p=>{const d=DATA[p.id][y];return '<tr><td>'+pLink(p)+'</td><td>'+badge(p,y)+'</td><td>'+d.pa+'</td><td>'+FM(HM,'avg',d.avg)+'</td><td>'+FM(HM,'obp',d.obp)+'</td><td>'+FM(HM,'slg',d.slg)+'</td><td>'+FM(HM,'opsp',d.opsp)+'</td><td>'+FM(HM,'hr',d.hr)+'</td><td>'+FM(HM,'sb',d.sb)+'</td>'+(SHOW_SAL?'<td>'+sal(p)+'</td>':'')+'</tr>';}).join('')+'</tbody></table></div>';
+  h+='<h2>투수 최종 기록 ('+rp.length+'명)</h2><div class="card scroll"><table><thead><tr><th>선수</th><th>구분</th><th>이닝</th><th>ERA</th><th>FIP</th><th>WHIP</th><th>K/9</th><th>삼진</th>'+(SHOW_SAL?'<th>연봉</th>':'')+'</tr></thead><tbody>'+rp.map(p=>{const d=DATA[p.id][y];return '<tr><td>'+pLink(p)+'</td><td>'+badge(p,y)+'</td><td>'+FM(PM,'ip',d.ip)+'</td><td>'+FM(PM,'era',d.era)+'</td><td>'+FM(PM,'fip',d.fip)+'</td><td>'+FM(PM,'whip',d.whip)+'</td><td>'+FM(PM,'k9',d.k9)+'</td><td>'+FM(PM,'so',d.so)+'</td>'+(SHOW_SAL?'<td>'+sal(p)+'</td>':'')+'</tr>';}).join('')+'</tbody></table></div>';
+  return h+'<p class="hint">선수 이름을 누르면 프로필로 이동합니다. 시즌 중 팀을 옮긴 선수는 기록이 가장 많은 쪽 팀에만 잡힐 수 있습니다. 규정 구분은 팀이 아니라 전체 시즌 기준(규정 타석 = 팀 경기 수×3.1, 규정 이닝 = 팀 경기 수×1.0)입니다.</p>';
+}
+const roundKo2=o=>['와일드카드','디비전시리즈','챔피언십시리즈','월드시리즈'][o]||'';
+const shortTeam=n=>{const w=String(n).trim().split(/\s+/);const l=w[w.length-1];return (/^(Sox|Jays)$/i.test(l)&&w.length>1)?w[w.length-2]+' '+l:l;};
+const splitScore=sc=>{const m=String(sc).match(/(\d+)\D+(\d+)/);return m?[+m[1],+m[2]]:[null,null];};
+function leagueMap(y){
+  const m=new Map(),ex=EXTRAS&&EXTRAS.seasons&&EXTRAS.seasons[y];
+  if(!ex)return m;
+  for(const d of ex.standings||[]){const lg=/american/i.test(d.lg)?'AL':/national/i.test(d.lg)?'NL':'';if(!lg)continue;for(const t of d.teams)m.set(t.n,lg);}
+  return m;
+}
+// 포스트시즌 대진표(사다리): 왼쪽 AL, 가운데 월드시리즈, 오른쪽 NL
+function bracketHtml(y){
+  const ex=EXTRAS&&EXTRAS.seasons&&EXTRAS.seasons[y];
+  const post=(ex&&ex.post)||[];
+  if(!post.length)return '';
+  const ser=post.map(r=>{const sc=splitScore(r.score);return {r,ord:r.ord!=null?r.ord:3,w:r.w,l:r.l,ww:sc[0],lw:sc[1]};});
+  const BW=140,BH=46,CG=30,RG=14,PAD=8,HD=22;
+  const ws=ser.filter(x=>x.ord===3).pop()||null;
+  const rest=ser.filter(x=>x!==ws);
+  const par=new Map();
+  const root=x=>{while(par.get(x)!==x){par.set(x,par.get(par.get(x)));x=par.get(x);}return x;};
+  rest.forEach(x=>{[x.w,x.l].forEach(t=>{if(!par.has(t))par.set(t,t);});const a=root(x.w),b=root(x.l);if(a!==b)par.set(a,b);});
+  const groups=new Map();rest.forEach(x=>{const g=root(x.w);if(!groups.has(g))groups.set(g,[]);groups.get(g).push(x);});
+  const lgm=leagueMap(y);
+  const sides=Array.from(groups.values()).map(list=>{const v={AL:0,NL:0};list.forEach(x=>[x.w,x.l].forEach(t=>{const g=lgm.get(t);if(g)v[g]++;}));return {list,lg:v.AL>v.NL?'AL':(v.NL>v.AL?'NL':'')};});
+  sides.sort((a,b)=>(a.lg==='AL'?0:a.lg==='NL'?2:1)-(b.lg==='AL'?0:b.lg==='NL'?2:1));
+  const lay=side=>{
+    if(!side)return {nodes:[],cols:0,leaves:0,top:null,ords:[],lg:''};
+    const list=side.list,used=new Set(),ords=Array.from(new Set(list.map(x=>x.ord))).sort((a,b)=>a-b);
+    let slot=0;const nodes=[];
+    const build=x=>{
+      used.add(x);const kids=[];
+      for(const t of [x.w,x.l]){const f=list.filter(z=>!used.has(z)&&z.ord<x.ord&&z.w===t).sort((a,b)=>b.ord-a.ord)[0];if(f)kids.push(build(f));}
+      const yy=kids.length?kids.reduce((a,k)=>a+k.y,0)/kids.length:slot++;
+      const nd={s:x,kids,y:yy,col:ords.indexOf(x.ord)};nodes.push(nd);return nd;
+    };
+    const tops=[];list.slice().sort((a,b)=>b.ord-a.ord).forEach(x=>{if(!used.has(x))tops.push(build(x));});
+    return {nodes,cols:ords.length,leaves:Math.max(slot,1),top:tops[0]||null,ords,lg:side.lg};
+  };
+  const L=lay(sides[0]),R=lay(sides[1]);
+  const rows=Math.max(L.leaves,R.leaves,1);
+  const H=HD+rows*(BH+RG)-RG+PAD;
+  const W=PAD*2+L.cols*(BW+CG)+BW+R.cols*(BW+CG);
+  const lx=c=>PAD+c*(BW+CG), rx=c=>W-PAD-BW-c*(BW+CG);
+  const py=nd=>HD+nd.y*(BH+RG);
+  const cx=PAD+L.cols*(BW+CG);
+  const tops=[L.top,R.top].filter(Boolean);
+  const wsY=HD+(tops.length?tops.reduce((a,t)=>a+t.y,0)/tops.length:0)*(BH+RG);
+  const box=(x,yy,x0,champ)=>{
+    const sx=x0.s;
+    const row=(n,wins,ty,cls)=>'<g data-act="team" data-t="'+esc(n)+'" data-y="'+y+'" style="cursor:pointer"><text x="'+(x+8)+'" y="'+ty+'" class="bt '+cls+'">'+esc(shortTeam(n))+'</text></g><text x="'+(x+BW-8)+'" y="'+ty+'" class="bw '+cls+'" text-anchor="end">'+(wins==null?'':wins)+'</text>';
+    return '<rect x="'+x+'" y="'+yy+'" width="'+BW+'" height="'+BH+'" rx="6" style="fill:var(--panel);stroke:'+(champ?'var(--bulb)':'var(--line)')+';stroke-width:'+(champ?2.5:1)+'"/><rect x="'+(x+1)+'" y="'+(yy+1)+'" width="'+(BW-2)+'" height="'+(BH/2-1)+'" rx="5" style="fill:rgba(245,197,66,.22)"/>'+row(sx.w,sx.ww,yy+19,'win')+row(sx.l,sx.lw,yy+39,'lose');
+  };
+  let g='',hd='';
+  const drawSide=(Ls,mirror)=>{
+    const X=c=>mirror?rx(c):lx(c);
+    Ls.nodes.forEach(nd=>{
+      nd.kids.forEach(k=>{
+        const kx=X(k.col),nx=X(nd.col),ky=py(k)+BH/2,ny=py(nd)+BH/2;
+        const x1=mirror?kx:kx+BW,x2=mirror?nx+BW:nx,mid=mirror?kx-CG/2:kx+BW+CG/2;
+        g+='<path d="M'+x1+','+ky+' H'+mid+' V'+ny+' H'+x2+'" style="fill:none;stroke:var(--line);stroke-width:1.5"/>';
+      });
+    });
+    Ls.nodes.forEach(nd=>{g+=box(X(nd.col),py(nd),nd,false);});
+    Ls.ords.forEach((o,i)=>{hd+='<text x="'+(X(i)+BW/2)+'" y="14" text-anchor="middle" class="bhd">'+(Ls.lg?Ls.lg+' ':'')+roundKo2(o)+'</text>';});
+    if(Ls.top){
+      const t=Ls.top,x1=mirror?X(t.col):X(t.col)+BW,x2=mirror?cx+BW:cx,mid=mirror?(X(t.col)+cx+BW)/2:(X(t.col)+BW+cx)/2;
+      if(ws)g+='<path d="M'+x1+','+(py(t)+BH/2)+' H'+mid+' V'+(wsY+BH/2)+' H'+x2+'" style="fill:none;stroke:var(--line);stroke-width:1.5"/>';
+    }
+  };
+  drawSide(L,false);drawSide(R,true);
+  if(ws){g+=box(cx,wsY,{s:ws},true);hd+='<text x="'+(cx+BW/2)+'" y="14" text-anchor="middle" class="bhd">월드시리즈</text>';}
+  return '<h2>'+y+' 포스트시즌 대진표</h2>'+(ws?'<p style="margin:0 0 8px">월드시리즈 우승 <b>'+esc(ws.w)+'</b> ('+esc(ws.r.score)+')</p>':'')+'<div class="card scroll"><svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="포스트시즌 대진표" style="display:block;min-width:'+W+'px">'+hd+g+'</svg></div><p class="hint">굵은 글씨·노란 줄이 이긴 팀이고 오른쪽 숫자는 시리즈 승수입니다. 왼쪽이 아메리칸리그, 오른쪽이 내셔널리그입니다(구분이 안 되는 시즌은 순서대로 놓았습니다). 팀 이름을 누르면 그 팀의 선수 기록으로 이동합니다.</p>';
+}
+
+// ---------- 수상 ----------
+const AWK=[['MVP','MVP (최우수선수)'],['CY','사이영상'],['ROY','신인왕'],['MOY','올해의 감독'],['WSMVP','월드시리즈 MVP'],['ASGMVP','올스타전 MVP']];
+const awOf=y=>((AW.data&&AW.data.awards&&AW.data.awards[y])||[]);
+const lgRank=a=>a.lg==='AL'?0:a.lg==='NL'?1:2;
+function awName(a){const pl=a.id?find(a.id):null;return pl?'<button class="tl" data-act="gop" data-id="'+esc(pl.id)+'">'+esc(a.n)+'</button>':esc(a.n);}
+function awRow(a){return '<div class="awr">'+(a.lg?'<span class="lgt">'+a.lg+'</span>':'')+'<b>'+awName(a)+'</b>'+(a.t?'<span class="tm">'+esc(a.t)+'</span>':'')+'</div>';}
+function awCard(title,list){return list.length?'<div class="awcard"><h3>'+title+'</h3>'+list.slice().sort((a,b)=>lgRank(a)-lgRank(b)).map(awRow).join('')+'</div>':'';}
+function awardsMini(y){
+  const l=awOf(y).filter(a=>a.k==='MVP'||a.k==='CY');
+  if(!l.length)return '';
+  return '<h2>'+y+' 주요 수상</h2><div class="awgrid">'+awCard('MVP',l.filter(a=>a.k==='MVP'))+awCard('사이영상',l.filter(a=>a.k==='CY'))+'</div><p class="hint">전체 수상자는 위쪽 “수상” 탭에서 볼 수 있습니다.</p>';
+}
+function vAwards(){
+  if(AW.state==='idle'||AW.state==='loading')return '<div class="empty">수상 자료를 불러오는 중입니다…</div>';
+  if(AW.state==='missing')return '<div class="empty">수상 자료 파일(data/mlb-awards.json)이 아직 없습니다. 자동 실행(Run workflow)을 한 번 돌리면 만들어집니다.</div>';
+  if(AW.state==='error')return '<div class="empty"><b>수상 자료를 읽지 못했습니다.</b> 이유: '+esc(AW.msg)+'</div>';
+  let h='<div class="filters" style="margin-top:0"><div class="scope" role="group" aria-label="보기 방식"><button data-act="awmode" data-v="year" aria-pressed="'+(S.awMode==='year')+'">연도별 한눈에</button><button data-act="awmode" data-v="award" aria-pressed="'+(S.awMode==='award')+'">상별 역대 수상자</button></div></div>';
+  if(S.awMode==='award'){
+    const years=Object.keys(AW.data.awards).map(Number).sort((a,b)=>b-a);
+    h+='<div class="controls"><label class="lbl">상<select data-act="set" data-key="awKind">'+AWK.map(a=>'<option value="'+a[0]+'"'+(a[0]===S.awKind?' selected':'')+'>'+a[1]+'</option>').join('')+'</select></label></div>';
+    const rows=years.map(y=>({y,l:awOf(y).filter(a=>a.k===S.awKind)})).filter(r=>r.l.length);
+    if(!rows.length)return h+'<div class="empty">이 상의 기록이 없습니다.</div>';
+    const hasLg=rows.some(r=>r.l.some(a=>a.lg));
+    const cell=(l,lg)=>l.filter(a=>a.lg===lg).map(awName).join(', ')||'-';
+    h+='<div class="card scroll"><table><thead><tr><th>연도</th>'+(hasLg?'<th>아메리칸리그</th><th>내셔널리그</th>':'<th>수상자</th>')+'</tr></thead><tbody>'+rows.map(r=>'<tr><td>'+r.y+'</td>'+(hasLg?'<td>'+cell(r.l,'AL')+'</td><td>'+cell(r.l,'NL')+'</td>':'<td>'+r.l.map(awName).join(', ')+'</td>')+'</tr>').join('')+'</tbody></table></div><p class="hint">수상자 이름이 파란색이면 MLB 기록이 있는 선수입니다. 누르면 프로필로 이동합니다.</p>';
+    return h;
+  }
+  h+='<div class="controls">'+selSeason()+'</div>';
+  const l=awOf(S.season);
+  if(!l.length)return h+'<div class="empty">'+S.season+' 시즌의 수상 기록이 없습니다(아직 발표 전이거나 자료에 없음).</div>';
+  h+='<div class="awgrid">'+AWK.map(a=>awCard(a[1],l.filter(x=>x.k===a[0]))).join('')+'</div><p class="hint">이름이 파란색이면 MLB 기록이 있는 선수입니다. 누르면 프로필로 이동합니다. 상마다 시작된 해가 달라서 옛 시즌에는 없는 상이 있습니다.</p>';
+  return h;
+}
+const lgCode=(lg,dv)=>{const t=(lg||'')+' '+(dv||'');return /american|\bAL\b/i.test(t)?'AL':(/national|\bNL\b/i.test(t)?'NL':'');};
+const lgKo=c=>c==='AL'?'아메리칸리그':c==='NL'?'내셔널리그':'리그';
+const dvShort=dv=>/east/i.test(dv)?'동부':/central/i.test(dv)?'중부':/west/i.test(dv)?'서부':'';
+const dvKo=(lg,dv)=>(lgKo(lgCode(lg,dv))+' '+dvShort(dv)).trim();
+const byPct=(a,b)=>(parseFloat(b.pct)||0)-(parseFloat(a.pct)||0)||b.w-a.w;
+function postModel(y){
+  const ex=EXTRAS&&EXTRAS.seasons&&EXTRAS.seasons[y];
+  if(!ex||!(ex.standings||[]).length)return null;
+  const post=ex.post||[];
+  const teams=[];
+  for(const d of ex.standings){const lg=lgCode(d.lg,d.dv);for(const t of d.teams)teams.push(Object.assign({},t,{lg,dv:d.dv||'',dlg:d.lg||''}));}
+  const inPost=new Map();
+  post.forEach(sr=>{[sr.w,sr.l].forEach(n=>{if(!inPost.has(n))inPost.set(n,[]);inPost.get(n).push(sr);});});
+  const exitOf=n=>{
+    const l=inPost.get(n);if(!l)return '';
+    const f=l.slice().sort((a,b)=>b.ord-a.ord)[0];
+    if(f.ord===3)return f.w===n?'월드시리즈 우승':'월드시리즈 준우승';
+    return roundKo2(f.ord)+(f.l===n?' 탈락':' 승리');
+  };
+  const lgs={};
+  for(const lg of ['AL','NL']){
+    const T=teams.filter(t=>t.lg===lg);
+    if(!T.length)continue;
+    const hasDv=T.some(t=>t.dv);
+    // 지구 우승팀: 지구마다 우승 표시가 있는 팀(없으면 그 지구 1위). 지구가 없던 시기는 리그 1위.
+    let dw;
+    if(hasDv){
+      dw=[];
+      for(const d of ex.standings){
+        if(lgCode(d.lg,d.dv)!==lg||!d.dv)continue;
+        const w=d.teams.find(t=>t.champ)||d.teams.find(t=>t.rank===1);
+        const full=w&&T.find(t=>t.n===w.n&&t.dv===(d.dv||''));
+        if(full)dw.push(full);
+      }
+      dw.sort(byPct);
+    }else dw=T.filter(t=>t.rank===1).sort(byPct);
+    const dwSet=new Set(dw.map(t=>t.n));
+    lgs[lg]={T,hasDv,dw,wc:T.filter(t=>!dwSet.has(t.n)&&inPost.has(t.n)).sort(byPct),rest:T.filter(t=>!dwSet.has(t.n)).sort(byPct)};
+  }
+  return {lgs,inPost,exitOf,post};
+}
+function champBanner(y){
+  const ex=EXTRAS&&EXTRAS.seasons&&EXTRAS.seasons[y];
+  const ws=((ex&&ex.post)||[]).filter(x=>x.ord===3).pop();
+  if(!ws)return '';
+  const sc=splitScore(ws.score);
+  return '<div class="champban"><div class="cy">'+y+' 월드시리즈 챔피언</div><div class="cn">'+esc(ws.w)+'</div><div class="cs">vs '+esc(ws.l)+' · '+(sc[0]!=null?sc[0]+'승 '+sc[1]+'패':esc(ws.score))+'</div></div>';
+}
+function postBoard(y){
+  const m=postModel(y);if(!m)return '';
+  const cols=['AL','NL'].filter(lg=>m.lgs[lg]).map(lg=>{
+    const L=m.lgs[lg];
+    const seeds=L.dw.map(t=>({t,k:'dw'})).concat(L.wc.map(t=>({t,k:'wc'})));
+    if(!seeds.length)return '';
+    return '<div class="pcol"><h3>'+lgKo(lg)+'</h3>'+seeds.map((x,i)=>{
+      const t=x.t,ex=m.exitOf(t.n),champ=ex==='월드시리즈 우승';
+      const tag=x.k==='wc'?'와일드카드':(L.hasDv?'지구 우승'+(dvShort(t.dv)?' · '+dvShort(t.dv):''):'리그 우승');
+      return '<div class="pr '+x.k+(champ?' champ':'')+'"><span class="sd">'+(i+1)+'</span><span class="tn"><button class="tl" data-act="team" data-t="'+esc(t.n)+'" data-y="'+y+'">'+esc(t.n)+'</button></span><span class="tg '+x.k+'">'+tag+'</span><span class="rc">'+t.w+'승 '+t.l+'패'+(ex?' · <b>'+esc(ex)+'</b>':'')+'</span></div>';
+    }).join('')+'</div>';
+  }).join('');
+  if(!cols)return '';
+  return '<h2>포스트시즌 진출팀</h2><div class="pbd">'+cols+'</div><p class="hint">번호는 시드(지구 우승팀을 승률순으로 먼저, 그다음 와일드카드)입니다. 금색이 지구 우승, 파란색이 와일드카드이고, 각 팀이 어디까지 올라갔는지도 적었습니다.</p>';
+}
+function dvWinners(y){
+  const ex=EXTRAS&&EXTRAS.seasons&&EXTRAS.seasons[y];if(!ex)return '';
+  const cards=[];
+  for(const d of ex.standings||[]){
+    if(!d.dv)continue;
+    const w=d.teams.find(t=>t.champ)||d.teams.find(t=>t.rank===1);
+    if(!w)continue;
+    cards.push('<div class="dvc"><div class="t">'+esc(dvKo(d.lg,d.dv)||d.dv)+'</div><div class="n"><button class="tl" data-act="team" data-t="'+esc(w.n)+'" data-y="'+y+'">'+esc(w.n)+'</button></div><div class="r">'+w.w+'승 '+w.l+'패 · 승률 '+esc(w.pct)+'</div></div>');
+  }
+  return cards.length?'<h2>지구별 우승팀</h2><div class="dvgrid">'+cards.join('')+'</div>':'';
+}
+function wcTable(y){
+  if(y<1995)return '';
+  const m=postModel(y);if(!m)return '';
+  const era=y>=2022?3:y>=2012?2:1;
+  const parts=['AL','NL'].filter(lg=>m.lgs[lg]&&m.lgs[lg].hasDv).map(lg=>{
+    const L=m.lgs[lg];if(!L.rest.length)return '';
+    const slots=m.post.length?L.wc.length:era;
+    const lastIn=L.rest[Math.max(slots-1,0)];
+    const rows=L.rest.slice(0,Math.max(slots+4,6)).map((t,i)=>{
+      const inn=i<slots;
+      const gb=inn?'-':(((lastIn.w-t.w)+(t.l-lastIn.l))/2).toFixed(1).replace(/\.0$/,'');
+      return '<tr class="'+(inn?'in':'out')+(i===slots-1?' cut':'')+'"><td>'+(i+1)+'</td><td><button class="tl" data-act="team" data-t="'+esc(t.n)+'" data-y="'+y+'">'+esc(t.n)+'</button>'+(inn?'<span class="bdg q">진출</span>':'')+'</td><td>'+t.w+'</td><td>'+t.l+'</td><td>'+esc(t.pct)+'</td><td>'+gb+'</td></tr>';
+    }).join('');
+    return '<div class="stand"><h3>'+lgKo(lg)+' 와일드카드 순위</h3><div class="card scroll"><table class="wc"><thead><tr><th>순위</th><th>팀</th><th>승</th><th>패</th><th>승률</th><th>게임차</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+  }).join('');
+  return parts?'<h2>와일드카드 순위</h2>'+parts+'<p class="hint">지구 우승팀을 뺀 팀들의 순위입니다. 파란 줄이 진출한 팀이고 굵은 선이 진출선입니다. 게임차는 마지막 진출팀 기준입니다.</p>':'';
+}
+function splitSides(y){
+  const ex=EXTRAS&&EXTRAS.seasons&&EXTRAS.seasons[y];
+  const post=(ex&&ex.post)||[];
+  if(!post.length)return null;
+  const ser=post.map(r=>{const sc=splitScore(r.score);return {r,ord:r.ord!=null?r.ord:3,w:r.w,l:r.l,ww:sc[0],lw:sc[1]};});
+  const ws=ser.filter(x=>x.ord===3).pop()||null;
+  const rest=ser.filter(x=>x!==ws);
+  const par=new Map();
+  const root=x=>{while(par.get(x)!==x){par.set(x,par.get(par.get(x)));x=par.get(x);}return x;};
+  rest.forEach(x=>{[x.w,x.l].forEach(t=>{if(!par.has(t))par.set(t,t);});const a=root(x.w),b=root(x.l);if(a!==b)par.set(a,b);});
+  const groups=new Map();rest.forEach(x=>{const g=root(x.w);if(!groups.has(g))groups.set(g,[]);groups.get(g).push(x);});
+  const lgm=leagueMap(y);
+  const sides=Array.from(groups.values()).map(list=>{const v={AL:0,NL:0};list.forEach(x=>[x.w,x.l].forEach(t=>{const g=lgm.get(t);if(g)v[g]++;}));return {list,lg:v.AL>v.NL?'AL':(v.NL>v.AL?'NL':'')};});
+  sides.sort((a,b)=>(a.lg==='AL'?0:a.lg==='NL'?2:1)-(b.lg==='AL'?0:b.lg==='NL'?2:1));
+  return {ws,sides};
+}
+function bracketCards(y){
+  const bs=splitSides(y);if(!bs)return '';
+  const row=(n,wins,cls)=>'<div class="sr '+cls+'"><button class="tl" data-act="team" data-t="'+esc(n)+'" data-y="'+y+'">'+esc(shortTeam(n))+'</button><b>'+(wins==null?'':wins)+'</b></div>';
+  const card=x=>'<div class="sc">'+row(x.w,x.ww,'win')+row(x.l,x.lw,'')+'</div>';
+  const col=side=>{
+    const ords=Array.from(new Set(side.list.map(x=>x.ord))).sort((a,b)=>a-b);
+    return '<div class="bcol"><h3 class="bh">'+lgKo(side.lg)+'</h3>'+ords.map(o=>'<div class="rt">'+roundKo2(o)+'</div>'+side.list.filter(x=>x.ord===o).map(card).join('')).join('')+'</div>';
+  };
+  return (bs.sides.length?'<div class="bgrid">'+bs.sides.slice(0,2).map(col).join('')+'</div>':'')+(bs.ws?'<div class="bfinal"><div class="rt" style="text-align:center">월드시리즈</div>'+card(bs.ws)+'</div>':'');
+}
+function bracketSection(y){
+  const ex=EXTRAS&&EXTRAS.seasons&&EXTRAS.seasons[y];
+  if(!(ex&&ex.post&&ex.post.length))return '';
+  const tog='<div class="filters" style="margin:0 0 8px"><div class="scope" role="group" aria-label="대진표 보기"><button data-act="brmode" data-v="card" aria-pressed="'+(S.brMode==='card')+'">카드로 보기</button><button data-act="brmode" data-v="tree" aria-pressed="'+(S.brMode==='tree')+'">가로 대진표(선 연결)</button></div></div>';
+  return '<h2>'+y+' 포스트시즌 대진표</h2>'+tog+(S.brMode==='tree'?bracketHtml(y).replace(/^<h2>.*?<\/h2>/,''):bracketCards(y)+'<p class="hint">노란 줄이 이긴 팀이고 오른쪽 숫자는 시리즈 승수입니다. 라운드는 위에서 아래로 진행됩니다. 팀 이름을 누르면 그 팀의 선수 기록으로 이동합니다.</p>');
+}
+function vSeason(){
+  const y=S.season;
+  let h='<div class="controls">'+selSeason()+'</div>';
+  if(S.teamSel){
+    const exists=teamsInSeason(y).has(S.teamSel)||!!teamRecord(y,S.teamSel);
+    if(exists)return h+teamDetailHtml(y,S.teamSel);
+  }
+  return h+champBanner(y)+postBoard(y)+dvWinners(y)+wcTable(y)+bracketSection(y)+awardsMini(y)+'<h2>'+y+' 시즌 순위</h2><p class="hint" style="margin:0 0 4px">팀 이름을 누르면 그 시즌 그 팀의 선수 최종 기록을 볼 수 있습니다.</p>'+standingsHtml(y)+postHtml(y,'');
+}
+function ensureDraft(){
+  if(DR.state!=='idle')return;
+  DR={state:'loading',data:null};
+  fetch('data/mlb-draft.json',{cache:'no-store'})
+    .then(function(r){if(r.status===404){const e=new Error('missing');e.missing=true;throw e;}if(!r.ok)throw new Error('서버 응답 '+r.status);return r.json();})
+    .then(function(j){
+      DR={state:'ok',data:j};
+      const ys=Object.keys(j.drafts||{}).map(Number).sort((a,b)=>b-a);
+      if(!ys.length){DR={state:'error',msg:'파일에 드래프트 기록이 없습니다(아직 받는 중이거나 비어 있음)'};}
+      else if(!S.dyear||!j.drafts[S.dyear])S.dyear=ys[0];
+      render();
+    })
+    .catch(function(e){DR=e&&e.missing?{state:'missing'}:{state:'error',msg:(e&&e.message)||'알 수 없는 오류'};render();});
+}
+function vDraft(){
+  if(DR.state==='idle')return '<div class="empty">드래프트 자료를 준비하는 중입니다…</div>';
+  if(DR.state==='loading')return '<div class="empty">드래프트 자료를 불러오는 중입니다…</div>';
+  if(DR.state==='missing')return '<div class="empty">드래프트 자료 파일(data/mlb-draft.json)이 아직 없습니다. 자동 실행(Run workflow)을 한 번 돌리면 만들어집니다.</div>';
+  if(DR.state==='error')return '<div class="empty"><b>드래프트 자료를 읽지 못했습니다.</b> 이유: '+esc(DR.msg)+'</div>';
+  const drafts=DR.data.drafts||{};
+  const ys=Object.keys(drafts).map(Number).sort((a,b)=>b-a);
+  const picksAll=(drafts[S.dyear]||[]).slice().sort((a,b)=>(a.p||0)-(b.p||0));
+  const maxR=picksAll.reduce((m,x)=>Math.max(m,x.r||0),0);
+  let h='<div class="controls"><label class="lbl">드래프트 연도<select data-act="set" data-key="dyear">'+ys.map(y=>'<option value="'+y+'"'+(y===S.dyear?' selected':'')+'>'+y+'</option>').join('')+'</select></label><label class="lbl">라운드<select data-act="set" data-key="dround"><option value="all"'+(S.dround==='all'?' selected':'')+'>전체</option>'+Array.from({length:maxR},(_,i)=>'<option value="'+(i+1)+'"'+(String(i+1)===String(S.dround)?' selected':'')+'>'+(i+1)+'라운드</option>').join('')+'</select></label></div>';
+  const picks=S.dround==='all'?picksAll:picksAll.filter(x=>String(x.r)===String(S.dround));
+  if(!picks.length)return h+'<div class="empty">이 조건의 지명 기록이 없습니다.</div>';
+  h+='<div class="card scroll"><table><thead><tr><th>순번</th><th>라운드</th><th>선수</th><th>포지션</th><th>지명 팀</th><th>학교</th><th>계약금</th></tr></thead><tbody>'+picks.slice(0,S.dN).map(x=>{const p=x.id?find(x.id):null;return '<tr><td>'+(x.p||'-')+'</td><td>'+(x.r||'-')+'</td><td>'+(p?pLink(p):esc(x.n))+'</td><td>'+esc(x.pos)+'</td><td>'+esc(x.t)+'</td><td>'+esc(x.s)+'</td><td>'+(x.b?usd(x.b):'-')+'</td></tr>';}).join('')+'</tbody></table></div>';
+  if(picks.length>S.dN)h+='<button class="chip more" data-act="dmore">'+Math.min(50,picks.length-S.dN)+'명 더 보기 (전체 '+picks.length+'명)</button>';
+  return h+'<p class="hint">선수 이름이 파란색이면 MLB 기록이 있는 선수입니다. 누르면 프로필로 이동합니다. 1965년부터 있는 기록입니다.</p>';
+}
+function sanitize(){
+  if(S.team&&!lst().some(p=>has(p,S.season)&&teamOf(p,S.season)===S.team))S.team='';
+  const ps=poolSeason();
+  if(!ps.some(p=>p.id===S.pid))S.pid=ps[0]?ps[0].id:'';
+  S.cmp=S.cmp.filter(id=>find(id));S.trend=S.trend.filter(id=>find(id));
+}
+function salNote(){
+  if(!SHOW_SAL)return '';
+  if(S.league!=='mlb'||META.source!=='real')return '';
+  if(SALSTATE==='ok')return ' 연봉(1985–2016년): 오픈 데이터(Lahman) '+Object.keys(SAL).length.toLocaleString('en-US')+'명이 연결되어 있습니다.';
+  if(SALSTATE==='missing')return ' <b>연봉 파일(data/mlb-salaries.json)을 이 사이트에서 찾지 못했습니다.</b> 저장소의 data 폴더 안에 올렸는지 확인하고, 몇 분 뒤 Ctrl+Shift+R로 다시 열어 보세요.';
+  if(SALSTATE.indexOf('error:')===0)return ' <b>연봉 파일을 읽지 못했습니다.</b> 이유: '+esc(SALSTATE.slice(6));
+  return '';
+}
+function histNote(){
+  if(S.league!=='mlb'||META.source!=='real')return '';
+  if(HIST.state==='loading')return ' <b>과거 기록을 불러오는 중입니다…</b> 파일이 커서 몇 초에서 몇십 초 걸릴 수 있습니다.';
+  if(HIST.state==='missing')return ' 과거 기록 파일(data/mlb-history.json)을 이 사이트에서 찾지 못했습니다. 저장소에 파일이 있다면 몇 분 뒤 Ctrl+Shift+R로 다시 열어 보세요.';
+  if(HIST.state==='error')return ' <b>과거 기록을 읽었지만 합치지 못했습니다.</b> 이유: '+esc(HIST.msg);
+  return '';
+}
+function renderData(){
+  const yrs=SEASONS.length?SEASONS[0]+'–'+SEASONS[SEASONS.length-1]:'';
+  const real=META.source==='real',LN=LEAGUES[S.league].name;
+  const date=META.generatedAt?String(META.generatedAt).slice(0,10):'';
+  document.getElementById('tag').textContent=real?joinDot([LN+' 데이터',yrs,date?'갱신 '+date:'']):LN+' 샘플 데이터 · 가상 선수 · '+yrs;
+  document.getElementById('datastatus').innerHTML=real
+    ? '지금 <b>실제 '+LN+' 데이터</b>를 보고 있습니다. 타자 '+H.length+'명, 투수 '+P.length+'명, 시즌 '+esc(yrs)+'.'+(META.auto?' 이 사이트의 최신 데이터를 자동으로 불러왔습니다.':'')+(META.hist?' 과거 기록 '+META.hist[0]+'–'+META.hist[1]+'년까지 포함했습니다.':'')+histNote()+salNote()+(EXTRAS?' 시즌별 순위·포스트시즌 자료가 연결되어 있습니다.':'')+(META.skipped>0?' (정보가 비어 있는 선수 '+META.skipped+'명은 건너뜀)':'')+(CT.n?' 연봉·계약 자료 '+CT.n+'건이 연결되어 있습니다.':'')
+    : '지금 <b>가상 선수 샘플</b>을 보고 있습니다. '+LN+' 데이터 JSON 파일을 불러오면 실제 선수로 바뀝니다.'+(CT.n?' 연봉·계약 자료 '+CT.n+'건이 연결되어 있습니다.':'');
+  document.getElementById('resetbtn').style.display=real?'':'none';
+  document.getElementById('note').textContent=real
+    ? 'OPS+는 불러온 데이터의 리그 평균 출루율과 장타율로 계산하며 구장 보정은 없습니다. FIP 상수는 시즌별 리그 기록에서 계산합니다. 규정 타석은 팀 경기 수×3.1, 규정 이닝은 팀 경기 수×1.0 기준이며, 경기 수는 데이터에 있으면 그 값을, 없으면 MLB 162·KBO 144를 씁니다. WAR는 아직 포함하지 않았습니다.'
+    : '샘플의 OPS+는 리그 평균 출루율 '+r3(META.obp)+', 장타율 '+r3(META.slg)+' 기준이고 구장 보정은 없습니다. FIP 상수는 '+META.cfip.toFixed(2)+'입니다. 규정 타석은 팀 경기 수×3.1, 규정 이닝은 팀 경기 수×1.0 기준입니다. WAR는 아직 포함하지 않았습니다.';
+}
+function render(){
+  const lg=S.league;
+  document.getElementById('landing').hidden=!!lg;
+  document.getElementById('shell').hidden=!lg;
+  if(!lg){document.title='야구 스탯 분석';return;}
+  document.title=LEAGUES[lg].name+' 스탯 분석';
+  document.getElementById('title').textContent=LEAGUES[lg].name+' 스탯 분석';
+  sanitize();
+  document.getElementById('seg').innerHTML=[['hitter','타자',H.length],['pitcher','투수',P.length]].filter(a=>a[2]>0).map(a=>'<button data-act="type" data-v="'+a[0]+'" aria-pressed="'+(S.type===a[0])+'">'+a[1]+'</button>').join('');
+  document.getElementById('tabs').innerHTML=TABS.map(a=>'<button role="tab" data-act="tab" data-v="'+a[0]+'" aria-selected="'+(S.tab===a[0])+'">'+a[1]+'</button>').join('');
+  const wide=(S.tab==='season'||S.tab==='draft'||S.tab==='awards');
+  document.getElementById('filters').innerHTML=filtersHtml();
+  document.getElementById('filters').style.display=wide?'none':'';
+  document.getElementById('seg').style.display=wide?'none':'';
+  const ctb=document.getElementById('ctbox');if(ctb)ctb.hidden=!SHOW_SAL;
+  const bk=document.querySelector('.back');if(bk)bk.hidden=!SHOW_KBO;
+  renderView();
+  renderData();
+}
+function renderView(){
+  sanitize();
+  const fn=({profile:vProfile,compare:vCompare,trend:vTrend,rank:vRank,top:vTop,season:vSeason,awards:vAwards,draft:vDraft})[S.tab]||vProfile;
+  document.getElementById('app').innerHTML=fn();
+  updateCount();
+}
+
+/* ---------- 이벤트 ---------- */
+function say(text,err){const el=document.getElementById('msg');el.textContent=text;el.className='msg'+(err?' err':'');}
+document.addEventListener('click',function(e){
+  const t=e.target.closest('[data-act]');if(!t)return;
+  const a=t.dataset.act;
+  if(a==='league'){enterLeague(t.dataset.v);return;}
+  else if(a==='home'){if(!SHOW_KBO)return;S.league=null;}
+  else if(a==='team'){S.teamSel=t.dataset.t;if(t.dataset.y)S.season=parseInt(t.dataset.y,10);S.tab='season';}
+  else if(a==='teamback'){S.teamSel='';}
+  else if(a==='gop'){const gp=find(t.dataset.id);if(gp){S.type=gp.t==='h'?'hitter':'pitcher';S.q='';S.scope='all';S.team='';S.favOnly=false;const ys=seasonsOf(gp);S.season=ys[ys.length-1];S.pid=gp.id;S.tab='profile';}}
+  else if(a==='dmore'){S.dN+=50;}
+  else if(a==='awmode'){S.awMode=t.dataset.v;}
+  else if(a==='brmode'){S.brMode=t.dataset.v;}
+  else if(a==='tab'){S.tab=t.dataset.v;if(S.tab==='draft')ensureDraft();}
+  else if(a==='type'){if(S.type!==t.dataset.v){S.type=t.dataset.v;initSel();}}
+  else if(a==='scope'){S.scope=t.dataset.v;S.rankN=20;}
+  else if(a==='cclear'){CT={byId:new Map(),byName:new Map(),n:0};lsDel(ctKey());say('연봉·계약 자료를 지웠습니다.');}
+  else if(a==='qualon'){S.scope='qual';}
+  else if(a==='tomet'){S.rmetric=t.dataset.m;S.tab='rank';S.rankN=20;}
+  else if(a==='rm'){S[t.dataset.key]=S[t.dataset.key].filter(id=>id!==t.dataset.id);}
+  else if(a==='fav'){const id=t.dataset.id,i=S.fav.indexOf(id);if(i>=0)S.fav.splice(i,1);else S.fav.push(id);lsSet(favKey(),JSON.stringify(S.fav));}
+  else if(a==='favonly'){S.favOnly=!S.favOnly;}
+  else if(a==='more'){S.rankN+=20;}
+  else if(a==='reset'){lsDel(dsKey());applyDataset(sampleDataset(S.league));say('샘플 데이터로 되돌렸습니다.');}
+  else return;
+  render();
+});
+// 이름 검색: 입력창은 그대로 두고 본문만 다시 그립니다(커서가 사라지지 않도록).
+document.addEventListener('input',function(e){
+  if(e.target&&e.target.id==='q'){S.q=e.target.value;S.rankN=20;renderView();}
+});
+document.addEventListener('change',function(e){
+  const t=e.target;
+  if(t.id==='cfile'){
+    const cf=t.files&&t.files[0];if(!cf)return;
+    const crd=new FileReader();
+    crd.onerror=function(){say('파일을 읽지 못했습니다.',true);};
+    crd.onload=function(){
+      try{const text=String(crd.result);loadContracts(text);const saved=lsSet(ctKey(),text);render();say('연봉·계약 자료 '+CT.n+'건을 불러왔습니다.'+(saved?'':' (이 브라우저에는 저장하지 못했습니다)'));}
+      catch(err){say('불러오지 못했습니다. '+err.message,true);}
+      t.value='';
+    };
+    crd.readAsText(cf);
+    return;
+  }
+  if(t.id==='file'){
+    const f=t.files&&t.files[0];if(!f)return;
+    const rd=new FileReader();
+    rd.onerror=function(){say('파일을 읽지 못했습니다.',true);};
+    rd.onload=function(){
+      try{
+        const text=String(rd.result),ds=JSON.parse(text);
+        applyDataset(ds);
+        const saved=lsSet(dsKey(),text);
+        render();
+        say(saved?'불러왔습니다. 이 브라우저에 저장해서 다시 열어도 유지됩니다.':'불러왔습니다. 이 브라우저에는 저장하지 못해 새로고침하면 사라집니다.');
+      }catch(err){
+        say('불러오지 못했습니다. '+err.message,true);
+      }
+      t.value='';
+    };
+    rd.readAsText(f);
+    return;
+  }
+  const act=t.dataset&&t.dataset.act;
+  if(act==='set'){const k=t.dataset.key;S[k]=(k==='season'||k==='dyear')?parseInt(t.value,10):t.value;if(k==='dyear'||k==='dround')S.dN=50;render();}
+  else if(act==='add'){const k=t.dataset.key;if(t.value&&S[k].length<4&&S[k].indexOf(t.value)<0)S[k].push(t.value);render();}
+});
+
+/* ---------- 시작 ---------- */
+if(SHOW_KBO)render(); else enterLeague('mlb'); // KBO는 주소 뒤에 ?kbo=1 을 붙일 때만 보입니다
+window.__mlb={enterLeague,render,S};
+})();
+</script>
+</body>
+</html>
