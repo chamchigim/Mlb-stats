@@ -1,1 +1,1 @@
-import './kbo_scraper_v6.mjs';
+import './kbo_scraper_v7.mjs';
